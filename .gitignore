@@ -1,0 +1,25 @@
+# -------- General --------
+.env
+*.log
+.DS_Store
+
+# -------- Node.js (server) --------
+server/node_modules/
+server/.env
+
+# -------- Flutter (mobile) --------
+mobile/build/
+mobile/.dart_tool/
+mobile/.packages
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+
+# -------- Python (ai-engine) --------
+ai-engine/__pycache__/
+ai-engine/*.pyc
+ai-engine/venv/
+ai-engine/.env
+
+# -------- IDE --------
+.vscode/
+.idea/

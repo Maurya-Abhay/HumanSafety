@@ -1,0 +1,27 @@
+{
+  "name": "humansafety-backend",
+  "version": "3.0.0",
+  "description": "Production-ready AI-powered emergency response platform with multi-role architecture",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "prod": "NODE_ENV=production node app.js",
+    "test": "jest --coverage",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "axios": "^1.15.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "express-validator": "^7.3.2",
+    "jsonwebtoken": "^9.0.0",
+    "mongoose": "^7.0.0",
+    "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.20"
+  }
+}
