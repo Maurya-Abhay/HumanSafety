@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 class AppConstants {
   // API
-  static const String baseUrl = 'http://localhost:5000';
-  static const String wsUrl = 'ws://localhost:5000';
+  static const String baseUrl = 'https://humansafety.onrender.com';
+  static const String wsUrl = 'wss://humansafety.onrender.com';
   static const String apiVersion = '/v1';
   static const Duration apiTimeout = Duration(seconds: 30);
 
