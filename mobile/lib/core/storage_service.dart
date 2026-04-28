@@ -36,10 +36,22 @@ class StorageService {
     await _prefs.setString(key, jsonEncode(value));
   }
 
+  static Future<void> saveJsonList(String key, List<Map<String, dynamic>> value) async {
+    await _prefs.setString(key, jsonEncode(value));
+  }
+
   static Future<Map<String, dynamic>?> getJson(String key) async {
     final value = _prefs.getString(key);
     if (value != null) {
       return jsonDecode(value) as Map<String, dynamic>;
+    }
+    return null;
+  }
+
+  static Future<List<dynamic>?> getJsonList(String key) async {
+    final value = _prefs.getString(key);
+    if (value != null) {
+      return jsonDecode(value) as List<dynamic>;
     }
     return null;
   }

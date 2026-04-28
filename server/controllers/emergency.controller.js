@@ -46,16 +46,21 @@ const triggerPanic = async (req, res) => {
 
     // If sensor data provided, get AI assessment
     if (sensorData) {
-      const aiResult = await AIEngineClient.analyzeAccident({
-        ...sensorData,
-        latitude,
-        longitude
-      });
+      try {
+        const aiResult = await AIEngineClient.analyzeAccident({
+          ...sensorData,
+          latitude,
+          longitude
+        });
 
-      if (aiResult.success) {
-        riskScore = aiResult.riskScore;
-        riskLevel = aiResult.riskLevel;
-        aiAnalysis = aiResult.data;
+        if (aiResult.success) {
+          riskScore = aiResult.riskScore;
+          riskLevel = aiResult.riskLevel;
+          aiAnalysis = aiResult.data;
+        }
+      } catch (aiError) {
+        console.warn('⚠️ AI Engine unavailable, using manual assessment:', aiError.message);
+        // Continue with manual assessment
       }
     }
 
@@ -64,22 +69,17 @@ const triggerPanic = async (req, res) => {
     const alert = new Alert({
       userId,
       type: 'panic',
-      status: 'active',
+      status: 'pending',
       location: {
-        type: 'Point',
-        coordinates: [longitude, latitude]
+        latitude,
+        longitude
       },
-      userInfo: {
-        name: user.name,
-        phone: user.phone,
-        emergencyPhones: user.emergencyPhones || []
-      },
-      aiAnalysis: {
+      description: `Panic alert activated - Risk Level: ${riskLevel}`,
+      metadata: {
         riskScore,
         riskLevel,
-        details: aiAnalysis
-      },
-      timestamp: new Date()
+        aiAnalysis: aiAnalysis
+      }
     });
 
     await alert.save();
@@ -107,15 +107,7 @@ const triggerPanic = async (req, res) => {
 
     // ============== PUSH NOTIFICATION TO USER ==============
 
-    await sendNotification(userId, {
-      title: '🚨 Panic Alert Sent',
-      body: `Your emergency contacts have been notified. Help is on the way.`,
-      data: {
-        alertId: alert._id,
-        type: 'panic',
-        location: `${latitude},${longitude}`
-      }
-    });
+    await sendNotification(userId, '🚨 Panic Alert Sent', `Your emergency contacts have been notified. Help is on the way.`, 'alert', alert._id);
 
     // ============== FIND NEARBY HOSPITALS ==============
 

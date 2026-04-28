@@ -11,7 +11,7 @@ class PrimaryButton extends StatelessWidget {
   final Color? backgroundColor;
   final Color? textColor;
 
-  const PrimaryButton({
+  const PrimaryButton({super.key, 
     required this.label,
     required this.onPressed,
     this.isLoading = false,
@@ -60,7 +60,7 @@ class SecondaryButton extends StatelessWidget {
   final VoidCallback onPressed;
   final double? width;
 
-  const SecondaryButton({
+  const SecondaryButton({super.key, 
     required this.label,
     required this.onPressed,
     this.width,
@@ -99,18 +99,20 @@ class CustomTextField extends StatelessWidget {
   final TextEditingController controller;
   final TextInputType inputType;
   final bool isPassword;
+  final bool readOnly;
   final String? Function(String?)? validator;
   final int maxLines;
   final int minLines;
   final Widget? suffixIcon;
   final ValueChanged<String>? onChanged;
 
-  const CustomTextField({
+  const CustomTextField({super.key, 
     required this.label,
     required this.hint,
     required this.controller,
     this.inputType = TextInputType.text,
     this.isPassword = false,
+    this.readOnly = false,
     this.validator,
     this.maxLines = 1,
     this.minLines = 1,
@@ -132,6 +134,7 @@ class CustomTextField extends StatelessWidget {
           controller: controller,
           keyboardType: inputType,
           obscureText: isPassword,
+          readOnly: readOnly,
           maxLines: isPassword ? 1 : maxLines,
           minLines: minLines,
           onChanged: onChanged,
@@ -159,7 +162,7 @@ class CustomCard extends StatelessWidget {
   final Color? backgroundColor;
   final double? elevation;
 
-  const CustomCard({
+  const CustomCard({super.key, 
     required this.child,
     this.padding,
     this.onTap,
@@ -190,7 +193,7 @@ class SOSButton extends StatelessWidget {
   final VoidCallback onPressed;
   final bool isActive;
 
-  const SOSButton({
+  const SOSButton({super.key, 
     required this.onPressed,
     this.isActive = false,
   });
@@ -207,7 +210,7 @@ class SOSButton extends StatelessWidget {
           color: isActive ? AppColors.accent : AppColors.error,
           boxShadow: [
             BoxShadow(
-              color: isActive ? AppColors.accent.withOpacity(0.5) : AppColors.error.withOpacity(0.5),
+              color: isActive ? AppColors.accent.withValues(alpha: 0.5) : AppColors.error.withValues(alpha: 0.5),
               blurRadius: 20,
               spreadRadius: 5,
             ),
@@ -232,7 +235,7 @@ class SOSButton extends StatelessWidget {
 class LoadingWidget extends StatelessWidget {
   final String? message;
 
-  const LoadingWidget({this.message});
+  const LoadingWidget({super.key, this.message});
 
   @override
   Widget build(BuildContext context) {
@@ -256,7 +259,7 @@ class ErrorWidget extends StatelessWidget {
   final String message;
   final VoidCallback? onRetry;
 
-  const ErrorWidget({
+  const ErrorWidget({super.key, 
     required this.message,
     this.onRetry,
   });
@@ -290,7 +293,7 @@ class CustomBottomNav extends StatelessWidget {
   final ValueChanged<int> onTap;
   final List<BottomNavItem> items;
 
-  const CustomBottomNav({
+  const CustomBottomNav({super.key, 
     required this.currentIndex,
     required this.onTap,
     required this.items,
@@ -329,7 +332,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget>? actions;
   final bool showBackButton;
 
-  const CustomAppBar({
+  const CustomAppBar({super.key, 
     required this.title,
     this.onBack,
     this.actions,

@@ -8,7 +8,7 @@ import '../../core/storage_service.dart';
 import '../../core/constants.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
-  const AdminDashboardScreen({Key? key}) : super(key: key);
+  const AdminDashboardScreen({super.key});
 
   @override
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
@@ -76,28 +76,28 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               const SizedBox(height: 16),
               _buildStatCard(
                 'Total Users',
-                '${statsProvider.stats['totalUsers'] ?? 0}',
+                '${statsProvider.totalUsers}',
                 Icons.people,
                 AppColors.primary,
               ),
               const SizedBox(height: 12),
               _buildStatCard(
                 'Active Alerts',
-                '${statsProvider.stats['activeAlerts'] ?? 0}',
+                '${statsProvider.totalCases}',
                 Icons.warning,
                 AppColors.warning,
               ),
               const SizedBox(height: 12),
               _buildStatCard(
                 'Resolved Cases',
-                '${statsProvider.stats['resolvedCases'] ?? 0}',
+                '${statsProvider.resolvedCases}',
                 Icons.check_circle,
                 AppColors.success,
               ),
               const SizedBox(height: 12),
               _buildStatCard(
-                'Hospitals',
-                '${statsProvider.stats['hospitalCount'] ?? 0}',
+                'Avg Response Time',
+                '${statsProvider.avgResponseTime} min',
                 Icons.local_hospital,
                 AppColors.info,
               ),
@@ -109,38 +109,38 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               const SizedBox(height: 16),
               CustomCard(
                 onTap: () => Navigator.pushNamed(context, AppRoutes.adminRoleVerification),
-                child: ListTile(
-                  leading: const Icon(Icons.verified_user, color: AppColors.primary, size: 32),
-                  title: const Text('Verify Roles'),
-                  subtitle: const Text('Review user role applications'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
+                child: const ListTile(
+                  leading: Icon(Icons.verified_user, color: AppColors.primary, size: 32),
+                  title: Text('Verify Roles'),
+                  subtitle: Text('Review user role applications'),
+                  trailing: Icon(Icons.arrow_forward_ios),
                 ),
               ),
               const SizedBox(height: 12),
               CustomCard(
                 onTap: () => Navigator.pushNamed(context, AppRoutes.adminUsers),
-                child: ListTile(
-                  leading: const Icon(Icons.group, color: AppColors.primary, size: 32),
-                  title: const Text('Manage Users'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
+                child: const ListTile(
+                  leading: Icon(Icons.group, color: AppColors.primary, size: 32),
+                  title: Text('Manage Users'),
+                  trailing: Icon(Icons.arrow_forward_ios),
                 ),
               ),
               const SizedBox(height: 12),
               CustomCard(
                 onTap: () => Navigator.pushNamed(context, AppRoutes.adminReports),
-                child: ListTile(
-                  leading: const Icon(Icons.description, color: AppColors.primary, size: 32),
-                  title: const Text('View Reports'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
+                child: const ListTile(
+                  leading: Icon(Icons.description, color: AppColors.primary, size: 32),
+                  title: Text('View Reports'),
+                  trailing: Icon(Icons.arrow_forward_ios),
                 ),
               ),
               const SizedBox(height: 12),
               CustomCard(
                 onTap: () => Navigator.pushNamed(context, AppRoutes.adminAnalytics),
-                child: ListTile(
-                  leading: const Icon(Icons.trending_up, color: AppColors.primary, size: 32),
-                  title: const Text('View Analytics'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
+                child: const ListTile(
+                  leading: Icon(Icons.trending_up, color: AppColors.primary, size: 32),
+                  title: Text('View Analytics'),
+                  trailing: Icon(Icons.arrow_forward_ios),
                 ),
               ),
             ],
@@ -156,7 +156,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
             child: Icon(icon, color: color, size: 32),
           ),
           const SizedBox(width: 16),

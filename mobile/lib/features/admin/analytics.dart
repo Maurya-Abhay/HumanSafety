@@ -3,7 +3,7 @@ import '../../shared/widgets.dart';
 import '../../core/theme.dart';
 
 class AdminAnalyticsScreen extends StatelessWidget {
-  const AdminAnalyticsScreen({Key? key}) : super(key: key);
+  const AdminAnalyticsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -105,12 +105,12 @@ class AdminAnalyticsScreen extends StatelessWidget {
             children: [
               Chip(
                 label: Text('$incidents incidents'),
-                backgroundColor: AppColors.warning.withOpacity(0.2),
+                backgroundColor: AppColors.warning.withValues(alpha: 0.2),
               ),
               const SizedBox(width: 8),
               Chip(
                 label: Text('$resolved resolved'),
-                backgroundColor: AppColors.success.withOpacity(0.2),
+                backgroundColor: AppColors.success.withValues(alpha: 0.2),
               ),
             ],
           ),

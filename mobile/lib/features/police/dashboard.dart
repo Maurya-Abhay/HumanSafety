@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../shared/widgets.dart';
-import '../../shared/models.dart';
 import '../../core/routes.dart';
 import '../../core/theme.dart';
 import '../../core/api_service.dart';
@@ -9,7 +7,7 @@ import '../../core/storage_service.dart';
 import '../../core/constants.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({Key? key}) : super(key: key);
+  const DashboardScreen({super.key});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -142,7 +140,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
             child: Icon(icon, color: color, size: 32),
           ),
           const SizedBox(width: 16),

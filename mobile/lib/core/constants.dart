@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 class AppConstants {
   // API
-  static const String baseUrl = 'https://api.humansafety.com';
+  static const String baseUrl = 'http://localhost:5000';
+  static const String wsUrl = 'ws://localhost:5000';
   static const String apiVersion = '/v1';
   static const Duration apiTimeout = Duration(seconds: 30);
 
@@ -11,6 +12,7 @@ class AppConstants {
   static const String userKey = 'user_data';
   static const String roleKey = 'user_role';
   static const String themeKey = 'theme_mode';
+  static const String emergencyContactsKey = 'emergency_contacts';
 
   // Strings
   static const String appName = 'HumanSafety';

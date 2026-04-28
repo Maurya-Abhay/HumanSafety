@@ -29,17 +29,12 @@ class EmergencyWorkflowController {
         return res.status(400).json({ message: 'Valid location required' });
       }
 
-      console.log(
-        `\n🚨 EMERGENCY TRIGGERED BY USER ${userId}\n` +
-        `Type: ${type}\n` +
-        `Location: ${location.latitude}, ${location.longitude}`
-      );
+      // Emergency triggered and being processed
 
       // Step 2: AI Analysis (if sensor data provided)
       let aiAnalysis = null;
       if (sensorData) {
         aiAnalysis = AIDecisionEngine.analyzeEmergency(sensorData);
-        console.log(`AI Confidence: ${aiAnalysis.confidenceScore}%`);
 
         // If low confidence, ask user
         if (aiAnalysis.decision === 'ASK_CONFIRMATION') {
@@ -75,7 +70,7 @@ class EmergencyWorkflowController {
 
       // Step 4: Notify trusted contacts (SMS fallback)
       const user = await User.findById(userId).select('phone');
-      const trustedContacts = []; // TODO: Get from user contacts
+      const trustedContacts = [];
       if (trustedContacts.length > 0) {
         await FailureHandlingService.sendSMSFallback(
           userId,
@@ -102,7 +97,7 @@ class EmergencyWorkflowController {
 
       // Step 7: Stream real-time updates
       const realtimeService = getRealtimeService();
-      realtimeService.streamEmergencyCreated(emergency, 0); // TODO: count nearby officers
+      realtimeService.streamEmergencyCreated(emergency, 0);
 
       res.status(200).json({
         success: true,
@@ -205,7 +200,7 @@ class EmergencyWorkflowController {
         emergency.location
       );
 
-      console.log(`✅ Hospital routing result:`, result);
+      // Hospital routing completed
       return result;
     } catch (error) {
       console.error('Hospital routing failed:', error.message);
@@ -225,7 +220,7 @@ class EmergencyWorkflowController {
       }
 
       // No acceptance within 15 seconds - escalate
-      console.log(`⏱️  TIMEOUT: Police didn't respond to ${emergencyId}`);
+      // Police response timeout
 
       await FailureHandlingService.escalateEmergency(
         emergencyId,
@@ -239,7 +234,7 @@ class EmergencyWorkflowController {
         10 // 10km radius instead of 5km
       );
 
-      console.log(`🔔 Escalation: Broadcast to ${expandedResult.targetOfficers} officers in wider area`);
+      // Emergency escalated to wider area
     } catch (error) {
       console.error('Timeout check failed:', error.message);
     }

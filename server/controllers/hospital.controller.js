@@ -10,7 +10,8 @@ const requestHospital = async (req, res) => {
     const locCheck = validateLocation(latitude, longitude);
     if (!locCheck.valid) return res.status(400).json({ message: locCheck.message });
     
-    const user = await User.findById(req.user.userId);
+    const userId = req.user._id || req.user.userId;
+    const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
     
     const hospitals = await findNearestHospitals(latitude, longitude, 10);
@@ -19,10 +20,11 @@ const requestHospital = async (req, res) => {
     }
     
     const alert = await Alert.create({
-      userId: req.user.userId,
+      userId,
       type: 'hospital',
       location: { latitude, longitude },
-      status: 'active',
+      status: 'pending',
+      description: 'Hospital request',
       metadata: {
         emergency: emergency || false,
         hospitalCount: hospitals.length,

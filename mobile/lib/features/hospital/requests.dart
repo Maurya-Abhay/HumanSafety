@@ -1,38 +1,109 @@
 import 'package:flutter/material.dart';
 import '../../shared/widgets.dart';
 import '../../core/theme.dart';
+import '../../core/api_service.dart';
+import '../../core/storage_service.dart';
+import '../../core/constants.dart';
 
-class RequestsScreen extends StatelessWidget {
-  const RequestsScreen({Key? key}) : super(key: key);
+class RequestsScreen extends StatefulWidget {
+  const RequestsScreen({super.key});
+
+  @override
+  State<RequestsScreen> createState() => _RequestsScreenState();
+}
+
+class _RequestsScreenState extends State<RequestsScreen> {
+  late String _token;
+  List<CaseItem> _requests = [];
+  bool _isLoading = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRequests();
+  }
+
+  Future<void> _loadRequests() async {
+    try {
+      setState(() => _isLoading = true);
+      _token = await StorageService.getString(AppConstants.tokenKey) ?? '';
+      if (_token.isNotEmpty) {
+        final requests = await ApiService.getHospitalAlerts(_token);
+        setState(() {
+          _requests = requests;
+          _error = null;
+        });
+      }
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _acceptRequest(String caseId) async {
+    try {
+      await ApiService.acceptEmergency(_token, caseId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Emergency accepted')),
+      );
+      _loadRequests();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const CustomAppBar(title: 'Emergency Requests'),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: 3,
-        itemBuilder: (context, index) => Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: CustomCard(
-            child: ListTile(
-              leading: const Icon(Icons.emergency_share, color: AppColors.accent),
-              title: const Text('Emergency Request'),
-              subtitle: const Text('5 mins ago'),
-              trailing: ElevatedButton(
-                onPressed: () {},
-                child: const Text('Accept'),
-              ),
-            ),
-          ),
-        ),
+      body: RefreshIndicator(
+        onRefresh: _loadRequests,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? Center(child: Text('Error: $_error'))
+                : _requests.isEmpty
+                    ? const Center(child: Text('No pending requests'))
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _requests.length,
+                        itemBuilder: (context, index) {
+                          final request = _requests[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: CustomCard(
+                              child: ListTile(
+                                leading: const Icon(Icons.emergency_share, color: AppColors.accent),
+                                title: Text(request.description ?? 'Emergency Request'),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Location: ${request.location}'),
+                                    Text(request.createdAt.toString().split('.')[0]),
+                                  ],
+                                ),
+                                trailing: ElevatedButton(
+                                  onPressed: () => _acceptRequest(request.id),
+                                  child: const Text('Accept'),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
       ),
     );
   }
 }
 
 class AmbulanceScreen extends StatelessWidget {
-  const AmbulanceScreen({Key? key}) : super(key: key);
+  const AmbulanceScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +129,7 @@ class AmbulanceScreen extends StatelessWidget {
 }
 
 class HospitalCasesScreen extends StatelessWidget {
-  const HospitalCasesScreen({Key? key}) : super(key: key);
+  const HospitalCasesScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -84,7 +155,7 @@ class HospitalCasesScreen extends StatelessWidget {
 }
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -112,27 +183,27 @@ class ProfileScreen extends StatelessWidget {
             const SizedBox(height: 4),
             const Text('Emergency Care Provider', style: TextStyle(color: AppColors.grey)),
             const SizedBox(height: 32),
-            CustomCard(
+            const CustomCard(
               child: ListTile(
-                leading: const Icon(Icons.location_on, color: AppColors.primary),
-                title: const Text('Address'),
-                subtitle: const Text('123 Hospital St, City'),
+                leading: Icon(Icons.location_on, color: AppColors.primary),
+                title: Text('Address'),
+                subtitle: Text('123 Hospital St, City'),
               ),
             ),
             const SizedBox(height: 12),
-            CustomCard(
+            const CustomCard(
               child: ListTile(
-                leading: const Icon(Icons.phone, color: AppColors.primary),
-                title: const Text('Phone'),
-                subtitle: const Text('+1 (555) 123-4567'),
+                leading: Icon(Icons.phone, color: AppColors.primary),
+                title: Text('Phone'),
+                subtitle: Text('+1 (555) 123-4567'),
               ),
             ),
             const SizedBox(height: 12),
-            CustomCard(
+            const CustomCard(
               child: ListTile(
-                leading: const Icon(Icons.email, color: AppColors.primary),
-                title: const Text('Email'),
-                subtitle: const Text('contact@hospital.com'),
+                leading: Icon(Icons.email, color: AppColors.primary),
+                title: Text('Email'),
+                subtitle: Text('contact@hospital.com'),
               ),
             ),
           ],

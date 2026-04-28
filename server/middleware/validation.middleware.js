@@ -87,10 +87,11 @@ const validateAddContact = [
     .trim()
     .matches(/^[0-9]{10,15}$/)
     .withMessage('Phone must be 10-15 digits'),
-  body('relationship')
+  body('relation')
+    .optional()
     .trim()
     .isLength({ min: 2, max: 20 })
-    .withMessage('Relationship must be 2-20 characters'),
+    .withMessage('Relation must be 2-20 characters'),
   validationErrorHandler
 ];
 

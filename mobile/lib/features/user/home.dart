@@ -6,7 +6,7 @@ import '../../core/routes.dart';
 import '../../core/theme.dart';
 
 class UserHomeScreen extends StatefulWidget {
-  const UserHomeScreen({Key? key}) : super(key: key);
+  const UserHomeScreen({super.key});
 
   @override
   State<UserHomeScreen> createState() => _UserHomeScreenState();
@@ -14,6 +14,16 @@ class UserHomeScreen extends StatefulWidget {
 
 class _UserHomeScreenState extends State<UserHomeScreen> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -101,15 +111,15 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
               Expanded(
                 child: CustomCard(
                   onTap: () => Navigator.pushNamed(context, AppRoutes.roleApplication),
-                  child: Column(
+                  child: const Column(
                     children: [
                       Icon(
                         Icons.badge_outlined,
                         size: 32,
                         color: Colors.green,
                       ),
-                      const SizedBox(height: 8),
-                      const Text('Apply for Role', textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
+                      SizedBox(height: 8),
+                      Text('Apply for Role', textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
                     ],
                   ),
                 ),
@@ -188,9 +198,14 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                         const SizedBox(height: 8),
                         Row(
                           children: [
-                            Icon(Icons.location_on, size: 16, color: AppColors.grey),
+                            const Icon(Icons.location_on, size: 16, color: AppColors.grey),
                             const SizedBox(width: 4),
-                            Expanded(child: Text(case_.location, style: const TextStyle(fontSize: 12))),
+                            Expanded(
+                              child: Text(
+                                case_.location ?? 'Location unavailable',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
                           ],
                         ),
                       ],

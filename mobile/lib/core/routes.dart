@@ -4,8 +4,6 @@ import 'package:flutter/material.dart';
 import '../features/auth/splash.dart';
 import '../features/auth/login.dart';
 import '../features/auth/signup.dart';
-import '../features/auth/otp.dart';
-import '../features/auth/role_select.dart';
 
 /// USER
 import '../features/user/home.dart';
@@ -28,15 +26,14 @@ import '../features/admin/settings.dart' as admin_settings;
 /// HOSPITAL
 import '../features/hospital/dashboard.dart' as hospital_dashboard;
 import '../features/hospital/requests.dart';
-import '../features/hospital/ambulance.dart';
-import '../features/hospital/cases.dart';
 import '../features/hospital/profile.dart' as hospital_profile;
+import '../features/hospital/ambulance.dart' show AmbulanceScreen;
+import '../features/hospital/cases.dart' show HospitalCasesScreen;
 
 /// POLICE
 import '../features/police/dashboard.dart' as police_dashboard;
-import '../features/police/alerts.dart';
+import '../features/police/alerts.dart' show AlertsScreen, PatrolScreen;
 import '../features/police/cases.dart' as police_cases;
-import '../features/police/patrol.dart';
 import '../features/police/profile.dart' as police_profile;
 
 /// SETTINGS
@@ -51,8 +48,6 @@ class AppRoutes {
   static const String splash = '/';
   static const String login = '/login';
   static const String signup = '/signup';
-  static const String otp = '/otp';
-  static const String roleSelect = '/role-select';
 
   /// USER
   static const String userHome = '/user/home';
@@ -99,8 +94,6 @@ class AppRoutes {
       splash: (_) => const SplashScreen(),
       login: (_) => const LoginScreen(),
       signup: (_) => const SignupScreen(),
-      otp: (_) => const OTPScreen(),
-      roleSelect: (_) => const RoleSelectScreen(),
 
       /// USER
       userHome: (_) => const UserHomeScreen(),

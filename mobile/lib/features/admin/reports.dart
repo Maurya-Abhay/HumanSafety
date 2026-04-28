@@ -3,7 +3,7 @@ import '../../shared/widgets.dart';
 import '../../core/theme.dart';
 
 class AdminReportsScreen extends StatelessWidget {
-  const AdminReportsScreen({Key? key}) : super(key: key);
+  const AdminReportsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../shared/widgets.dart';
 import '../../shared/models.dart';
 import '../../core/theme.dart';
 
 class ReportScreen extends StatefulWidget {
-  const ReportScreen({Key? key}) : super(key: key);
+  const ReportScreen({super.key});
 
   @override
   State<ReportScreen> createState() => _ReportScreenState();
@@ -62,12 +63,12 @@ class _ReportScreenState extends State<ReportScreen> {
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 12),
-            CustomCard(
+            const CustomCard(
               child: ListTile(
-                leading: const Icon(Icons.location_on, color: AppColors.primary),
-                title: const Text('Current Location'),
-                subtitle: const Text('45.34° N, 75.42° W'),
-                trailing: const Icon(Icons.check_circle, color: AppColors.success),
+                leading: Icon(Icons.location_on, color: AppColors.primary),
+                title: Text('Current Location'),
+                subtitle: Text('45.34° N, 75.42° W'),
+                trailing: Icon(Icons.check_circle, color: AppColors.success),
               ),
             ),
             const SizedBox(height: 12),
@@ -84,13 +85,25 @@ class _ReportScreenState extends State<ReportScreen> {
               isLoading: _isLoading,
               onPressed: () async {
                 setState(() => _isLoading = true);
-                await context.read<CasesProvider>().reportIncident({
-                  'title': _titleController.text,
-                  'description': _descriptionController.text,
-                  'type': _selectedType,
-                });
-                if (mounted) {
+                final casesProvider = context.read<CasesProvider>();
+                try {
+                  final position = await Geolocator.getCurrentPosition();
+                  await casesProvider.reportIncident(
+                    position.latitude,
+                    position.longitude,
+                    '${_titleController.text}: ${_descriptionController.text}',
+                  );
+                  if (!context.mounted) return;
                   Navigator.pop(context);
+                } catch (e) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: ${e.toString()}')),
+                  );
+                } finally {
+                  if (mounted) {
+                    setState(() => _isLoading = false);
+                  }
                 }
               },
             ),

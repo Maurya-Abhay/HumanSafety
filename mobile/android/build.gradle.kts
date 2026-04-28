@@ -1,3 +1,5 @@
+import com.android.build.gradle.LibraryExtension
+
 allprojects {
     repositories {
         google()
@@ -17,6 +19,18 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
+}
+
+// Some older Flutter plugins don't declare `namespace` and fail on newer AGP.
+// Assign a fallback namespace for Android library modules missing one.
+subprojects {
+    plugins.withId("com.android.library") {
+        extensions.configure<LibraryExtension> {
+            if (namespace == null) {
+                namespace = "com.example.${project.name.replace('-', '_')}"
+            }
+        }
+    }
 }
 
 tasks.register<Delete>("clean") {

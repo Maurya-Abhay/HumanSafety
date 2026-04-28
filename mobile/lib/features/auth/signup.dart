@@ -5,19 +5,20 @@ import '../../shared/models.dart';
 import '../../core/routes.dart';
 
 class SignupScreen extends StatefulWidget {
-  const SignupScreen({Key? key}) : super(key: key);
+  const SignupScreen({super.key});
 
   @override
   State<SignupScreen> createState() => _SignupScreenState();
 }
 
 class _SignupScreenState extends State<SignupScreen> {
+  final _formKey = GlobalKey<FormState>();
+
   final _nameController = TextEditingController();
-  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
 
   @override
   Widget build(BuildContext context) {
@@ -32,103 +33,98 @@ class _SignupScreenState extends State<SignupScreen> {
               children: [
                 const SizedBox(height: 20),
                 Text(
-                  'Create Account',
-                  style: Theme.of(context).textTheme.displayMedium,
+                  "Create Account",
+                  style: Theme.of(context).textTheme.headlineLarge,
                 ),
-                const SizedBox(height: 8),
-                const Text('Join HumanSafety community'),
+                const SizedBox(height: 6),
+                const Text("Join HumanSafety community"),
+
                 const SizedBox(height: 30),
+
                 CustomTextField(
-                  label: 'Full Name',
-                  hint: 'Enter your full name',
+                  label: "Full Name",
+                  hint: "Enter your full name",
                   controller: _nameController,
-                  validator: (value) {
-                    if (value?.isEmpty ?? true) return 'Name is required';
-                    return null;
-                  },
+                  validator: (v) => v!.isEmpty ? "Name required" : null,
                 ),
-                const SizedBox(height: 16),
+
+                const SizedBox(height: 12),
+
                 CustomTextField(
-                  label: 'Phone',
-                  hint: 'Enter your phone number',
+                  label: "Email",
+                  hint: "Enter your email",
+                  controller: _emailController,
+                  inputType: TextInputType.emailAddress,
+                  validator: (v) => v!.isEmpty ? "Email required" : null,
+                ),
+
+                const SizedBox(height: 12),
+
+                CustomTextField(
+                  label: "Phone",
+                  hint: "Enter your phone number",
                   controller: _phoneController,
                   inputType: TextInputType.phone,
-                  validator: (value) {
-                    if (value?.isEmpty ?? true) return 'Phone is required';
-                    if (value!.length < 10) return 'Invalid phone';
-                    return null;
-                  },
+                  validator: (v) =>
+                      v!.length < 10 ? "Valid phone required" : null,
                 ),
-                const SizedBox(height: 16),
+
+                const SizedBox(height: 12),
+
                 CustomTextField(
-                  label: 'Phone',
-                  hint: 'Enter your phone number',
-                  controller: _phoneController,
-                  inputType: TextInputType.phone,
-                  validator: (value) {
-                    if (value?.isEmpty ?? true) return 'Phone is required';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                CustomTextField(
-                  label: 'Password',
-                  hint: 'Create a password',
+                  label: "Password",
+                  hint: "Create a password (min 6 chars)",
                   controller: _passwordController,
                   isPassword: true,
-                  validator: (value) {
-                    if (value?.isEmpty ?? true) return 'Password is required';
-                    if (value!.length < 8) return 'Password must be at least 8 characters';
-                    return null;
-                  },
+                  validator: (v) =>
+                      v!.length < 6 ? "Min 6 chars required" : null,
                 ),
-                const SizedBox(height: 16),
+
+                const SizedBox(height: 12),
+
                 CustomTextField(
-                  label: 'Confirm Password',
-                  hint: 'Confirm your password',
+                  label: "Confirm Password",
+                  hint: "Re-enter your password",
                   controller: _confirmPasswordController,
                   isPassword: true,
-                  validator: (value) {
-                    if (value?.isEmpty ?? true) return 'Confirm password is required';
-                    if (value != _passwordController.text) return 'Passwords don\'t match';
-                    return null;
-                  },
+                  validator: (v) =>
+                      v != _passwordController.text ? "Not matched" : null,
                 ),
-                const SizedBox(height: 30),
+
+                const SizedBox(height: 25),
+
                 Consumer<AuthProvider>(
-                  builder: (context, authProvider, _) {
+                  builder: (context, auth, _) {
                     return PrimaryButton(
-                      label: 'Sign Up',
-                      isLoading: authProvider.isLoading,
+                      label: "Sign Up",
+                      isLoading: auth.isLoading,
                       onPressed: () async {
-                        if (_formKey.currentState!.validate()) {
-                          final success = await authProvider.signup(
-                            _phoneController.text,
-                            _passwordController.text,
-                            _nameController.text,
+                        if (!_formKey.currentState!.validate()) return;
+
+                        final ok = await auth.signup(
+                          _phoneController.text,
+                          _passwordController.text,
+                          _nameController.text,
+                          _emailController.text,
+                        );
+
+                        if (!context.mounted) return;
+
+                        if (ok) {
+                          final homeRoute = _homeRouteForRole(auth.user?.role ?? 'user');
+                          Navigator.pushNamedAndRemoveUntil(
+                            context,
+                            homeRoute,
+                            (route) => false,
                           );
-                          if (mounted && success) {
-                            Navigator.pushNamedAndRemoveUntil(
-                              context,
-                              AppRoutes.otp,
-                              (route) => false,
-                            );
-                          }
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(auth.error ?? 'Signup failed')),
+                          );
                         }
                       },
                     );
                   },
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text('Already have an account? '),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Login'),
-                    ),
-                  ],
                 ),
               ],
             ),
@@ -136,6 +132,20 @@ class _SignupScreenState extends State<SignupScreen> {
         ),
       ),
     );
+  }
+
+  String _homeRouteForRole(String role) {
+    switch (role) {
+      case 'police':
+        return AppRoutes.policeDashboard;
+      case 'hospital':
+        return AppRoutes.hospitalDashboard;
+      case 'admin':
+        return AppRoutes.adminDashboard;
+      case 'user':
+      default:
+        return AppRoutes.userHome;
+    }
   }
 
   @override

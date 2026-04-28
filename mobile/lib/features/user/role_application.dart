@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../shared/widgets.dart';
 import '../../shared/models.dart';
-import '../../core/constants.dart';
+import '../../core/api_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class RoleApplicationScreen extends StatefulWidget {
-  const RoleApplicationScreen({Key? key}) : super(key: key);
+  const RoleApplicationScreen({super.key});
 
   @override
   State<RoleApplicationScreen> createState() => _RoleApplicationScreenState();
@@ -264,9 +264,9 @@ class _RoleApplicationScreenState extends State<RoleApplicationScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
+                  color: Colors.blue.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                  border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -295,7 +295,7 @@ class _RoleApplicationScreenState extends State<RoleApplicationScreen> {
               PrimaryButton(
                 label: _isSubmitting ? 'Submitting...' : 'Submit Application',
                 isLoading: _isSubmitting,
-                onPressed: _isSubmitting ? null : _submitApplication,
+                onPressed: _isSubmitting ? () {} : () => _submitApplication(),
               ),
               const SizedBox(height: 20),
             ],
@@ -319,7 +319,7 @@ class _RoleApplicationScreenState extends State<RoleApplicationScreen> {
             width: isSelected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(8),
-          color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.white,
+          color: isSelected ? Colors.blue.withValues(alpha: 0.1) : Colors.white,
         ),
         child: Column(
           children: [

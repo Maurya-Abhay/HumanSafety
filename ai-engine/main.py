@@ -393,17 +393,6 @@ async def get_system_health():
 if __name__ == "__main__":
     PORT = int(os.getenv("PORT", 8000))
     
-    print("\n" + "="*60)
-    print("🚀 HumanSafety AI Intelligence Engine v2.0")
-    print("="*60)
-    print(f"📡 Running on http://localhost:{PORT}")
-    print(f"📚 API Docs: http://localhost:{PORT}/docs")
-    print(f"🧠 Fusion Engine: Active")
-    print(f"🎯 Real-time Streaming: Enabled")
-    print(f"🔮 Emergency Prediction: Ready")
-    print(f"🛡️  False Alarm Filtering: Active")
-    print("="*60 + "\n")
-    
     uvicorn.run(
         "main:app",
         host="0.0.0.0",

@@ -4,14 +4,11 @@ import 'package:provider/provider.dart';
 import 'core/theme.dart';
 import 'core/routes.dart';
 import 'core/constants.dart';
+import 'core/sensor_service.dart';
 import 'shared/models.dart';
-import 'features/user/home.dart';
-import 'features/admin/dashboard.dart';
-import 'features/police/dashboard.dart' as police;
-import 'features/hospital/dashboard.dart' as hospital;
 
 class HumanSafetyApp extends StatelessWidget {
-  const HumanSafetyApp({Key? key}) : super(key: key);
+  const HumanSafetyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +20,7 @@ class HumanSafetyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CasesProvider()),
         ChangeNotifierProvider(create: (_) => NotificationsProvider()),
         ChangeNotifierProvider(create: (_) => StatsProvider()),
+        ChangeNotifierProvider(create: (_) => SensorService()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {
@@ -64,25 +62,6 @@ class HumanSafetyApp extends StatelessWidget {
     // Load user profile from server to get role
     return _LoadUserProfileWrapper();
   }
-
-  Widget _buildRoleSpecificHome(String role) {
-    switch (role) {
-      case 'user':
-        return const UserHomeScreen();
-
-      case 'police':
-        return const police.DashboardScreen();
-
-      case 'hospital':
-        return const hospital.DashboardScreen();
-
-      case 'admin':
-        return const AdminDashboardScreen();
-
-      default:
-        return const UserHomeScreen();
-    }
-  }
 }
 
 class _SplashWrapper extends StatefulWidget {
@@ -108,10 +87,10 @@ class _SplashWrapperState extends State<_SplashWrapper> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).primaryColor,
-      body: Center(
+      body: const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
+          children: [
             Icon(Icons.shield_outlined, size: 80, color: Colors.white),
             SizedBox(height: 20),
             Text(
@@ -175,14 +154,14 @@ class _LoadUserProfileWrapperState extends State<_LoadUserProfileWrapper> {
                 notificationsProvider.load(userId),
               ]);
             } catch (e) {
-              print('Error loading user data: $e');
+              debugPrint('Error loading user data: $e');
             }
           } else if (role == 'admin') {
             // Load admin stats
             try {
               await statsProvider.fetchStats(token);
             } catch (e) {
-              print('Error loading admin stats: $e');
+              debugPrint('Error loading admin stats: $e');
             }
           }
         }
@@ -196,7 +175,7 @@ class _LoadUserProfileWrapperState extends State<_LoadUserProfileWrapper> {
         }
       }
     } catch (e) {
-      print('Error loading profile: $e');
+      debugPrint('Error loading profile: $e');
       if (mounted) {
         Navigator.pushReplacementNamed(context, AppRoutes.login);
       }
@@ -206,14 +185,14 @@ class _LoadUserProfileWrapperState extends State<_LoadUserProfileWrapper> {
   String _getHomeRouteForRole(String role) {
     switch (role) {
       case 'police':
-        return '/police-home';
+        return AppRoutes.policeDashboard;
       case 'hospital':
-        return '/hospital-home';
+        return AppRoutes.hospitalDashboard;
       case 'admin':
-        return '/admin-home';
+        return AppRoutes.adminDashboard;
       case 'user':
       default:
-        return '/user-home';
+        return AppRoutes.userHome;
     }
   }
 

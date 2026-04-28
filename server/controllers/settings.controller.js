@@ -2,9 +2,10 @@ const Settings = require('../models/settings.model');
 
 const getSettings = async (req, res) => {
   try {
-    let settings = await Settings.findOne({ userId: req.user.userId });
+    const userId = req.user._id || req.user.userId;
+    let settings = await Settings.findOne({ userId });
     if (!settings) {
-      settings = await Settings.create({ userId: req.user.userId });
+      settings = await Settings.create({ userId });
     }
     
     res.status(200).json({
@@ -30,8 +31,9 @@ const getSettings = async (req, res) => {
 
 const updateSettings = async (req, res) => {
   try {
+    const userId = req.user._id || req.user.userId;
     const settings = await Settings.findOneAndUpdate(
-      { userId: req.user.userId },
+      { userId },
       req.body,
       { new: true, upsert: true }
     );

@@ -5,7 +5,7 @@ import '../../shared/models.dart';
 import '../../core/theme.dart';
 
 class ThemeModeScreen extends StatelessWidget {
-  const ThemeModeScreen({Key? key}) : super(key: key);
+  const ThemeModeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +32,7 @@ class ThemeModeScreen extends StatelessWidget {
                       Container(
                         width: 60,
                         height: 60,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           color: AppColors.greyLight,
                         ),
@@ -61,7 +61,7 @@ class ThemeModeScreen extends StatelessWidget {
                       Container(
                         width: 60,
                         height: 60,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           color: AppColors.greyDark,
                         ),

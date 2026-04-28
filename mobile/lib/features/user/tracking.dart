@@ -3,7 +3,7 @@ import '../../shared/widgets.dart';
 import '../../core/theme.dart';
 
 class TrackingScreen extends StatelessWidget {
-  const TrackingScreen({Key? key}) : super(key: key);
+  const TrackingScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

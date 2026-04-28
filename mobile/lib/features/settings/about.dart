@@ -3,7 +3,7 @@ import '../../shared/widgets.dart';
 import '../../core/constants.dart';
 
 class AboutScreen extends StatelessWidget {
-  const AboutScreen({Key? key}) : super(key: key);
+  const AboutScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -62,10 +62,10 @@ class AboutScreen extends StatelessWidget {
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 12),
-            CustomCard(
+            const CustomCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
+                children: [
                   Text('Email: support@humansafety.com'),
                   SizedBox(height: 8),
                   Text('Phone: +1 (555) 123-4567'),
@@ -95,7 +95,7 @@ class AboutScreen extends StatelessWidget {
 }
 
 class HelpScreen extends StatelessWidget {
-  const HelpScreen({Key? key}) : super(key: key);
+  const HelpScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

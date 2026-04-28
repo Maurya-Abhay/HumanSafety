@@ -1,10 +1,24 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:http/http.dart' as http;
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:web_socket_channel/status.dart' as status;
+import 'package:flutter/foundation.dart';
 import 'constants.dart';
+import 'storage_service.dart';
 
 class ApiService {
   static const baseUrl = AppConstants.baseUrl;
   static const timeout = Duration(seconds: 30);
+
+  // WebSocket
+  static WebSocketChannel? _channel;
+  static StreamSubscription? _subscription;
+  static final StreamController<Map<String, dynamic>> _messageController = StreamController.broadcast();
+  static bool _isConnected = false;
+
+  static Stream<Map<String, dynamic>> get messageStream => _messageController.stream;
+  static bool get isWebSocketConnected => _isConnected;
 
   static Map<String, String> _getHeaders({String? token}) {
     return {
@@ -46,6 +60,7 @@ class ApiService {
 
   static Future<AuthResponse> login(String phone, String password) async {
     try {
+      print('🌐 Making login request to: $baseUrl/api/v1/auth/login');
       final response = await http
           .post(
             Uri.parse('$baseUrl/api/v1/auth/login'),
@@ -54,9 +69,39 @@ class ApiService {
           )
           .timeout(timeout);
 
+      print('📡 Login response status: ${response.statusCode}');
+      print('📡 Login response body: ${response.body}');
+
       return _handleResponse(response, (json) => AuthResponse.fromJson(json));
     } catch (e) {
+      print('❌ Login API error: $e');
       throw ApiException('Login failed: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<AuthResponse> signup(String phone, String password, String fullName, String email) async {
+    try {
+      print('🌐 Making signup request to: $baseUrl/api/v1/auth/signup');
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/api/v1/auth/signup'),
+            headers: _getHeaders(),
+            body: jsonEncode({
+              'phone': phone,
+              'password': password,
+              'fullName': fullName,
+              'email': email,
+            }),
+          )
+          .timeout(timeout);
+
+      print('📡 Signup response status: ${response.statusCode}');
+      print('📡 Signup response body: ${response.body}');
+
+      return _handleResponse(response, (json) => AuthResponse.fromJson(json));
+    } catch (e) {
+      print('❌ Signup API error: $e');
+      throw ApiException('Signup failed: ${e.toString()}', 0);
     }
   }
 
@@ -386,6 +431,135 @@ class ApiService {
     }
   }
 
+  // ============ NOTIFICATION ENDPOINTS ============
+
+  static Future<List<Notification>> getNotifications(String token) async {
+    try {
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/api/v1/notifications'),
+            headers: _getHeaders(token: token),
+          )
+          .timeout(timeout);
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final List data = jsonDecode(response.body);
+        return data.map((item) => Notification.fromJson(item)).toList();
+      } else {
+        throw ApiException('Failed to fetch notifications', response.statusCode);
+      }
+    } catch (e) {
+      throw ApiException('Failed to fetch notifications: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<void> markNotificationAsRead(String token, String notificationId) async {
+    try {
+      await http
+          .put(
+            Uri.parse('$baseUrl/api/v1/notifications/$notificationId/read'),
+            headers: _getHeaders(token: token),
+          )
+          .timeout(timeout);
+    } catch (e) {
+      throw ApiException('Failed to mark notification as read: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<void> deleteNotification(String token, String notificationId) async {
+    try {
+      await http
+          .delete(
+            Uri.parse('$baseUrl/api/v1/notifications/$notificationId'),
+            headers: _getHeaders(token: token),
+          )
+          .timeout(timeout);
+    } catch (e) {
+      throw ApiException('Failed to delete notification: ${e.toString()}', 0);
+    }
+  }
+
+  // ============ CONTACT ENDPOINTS ============
+
+  static Future<List<Contact>> getContacts(String token) async {
+    try {
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/api/v1/contact/list'),
+            headers: _getHeaders(token: token),
+          )
+          .timeout(timeout);
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final decoded = jsonDecode(response.body);
+
+        // Handle multiple possible shapes:
+        // 1. Raw list: [ {..}, {..} ]
+        // 2. Wrapped object: { message: "..", count: N, contacts: [ ... ] }
+        List items;
+        if (decoded is List) {
+          items = decoded;
+        } else if (decoded is Map && decoded['contacts'] is List) {
+          items = decoded['contacts'];
+        } else if (decoded is Map && decoded['data'] is List) {
+          // fallback for APIs that return { data: [...] }
+          items = decoded['data'];
+        } else {
+          // Unexpected shape: try to coerce single object into a list
+          if (decoded is Map) {
+            items = [decoded];
+          } else {
+            items = [];
+          }
+        }
+
+        return items.map((item) => Contact.fromJson(item)).toList();
+      } else {
+        throw ApiException('Failed to fetch contacts', response.statusCode);
+      }
+    } catch (e) {
+      throw ApiException('Failed to fetch contacts: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<Contact> addContact(
+    String token, {
+    required String name,
+    required String phone,
+    String? relation,
+  }) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/api/v1/contact/add'),
+            headers: _getHeaders(token: token),
+            body: jsonEncode({
+              'name': name,
+              'phone': phone,
+              'relation': relation ?? 'Friend',
+            }),
+          )
+          .timeout(timeout);
+
+      return _handleResponse(response, (json) => Contact.fromJson(json));
+    } catch (e) {
+      throw ApiException('Failed to add contact: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<void> deleteContact(String token, String contactId) async {
+    try {
+      await http
+          .delete(
+            Uri.parse('$baseUrl/api/v1/contact/remove/$contactId'),
+            headers: _getHeaders(token: token),
+          )
+          .timeout(timeout);
+    } catch (e) {
+      throw ApiException('Failed to delete contact: ${e.toString()}', 0);
+    }
+  }
+
   // ============ ROLE APPLICATION ENDPOINTS ============
 
   static Future<RoleApplicationResponse> submitRoleApplication(
@@ -421,6 +595,70 @@ class ApiService {
           response, (json) => RoleApplicationStatus.fromJson(json));
     } catch (e) {
       throw ApiException('Failed to fetch role application status: ${e.toString()}', 0);
+    }
+  }
+
+  // ============ WEBSOCKET METHODS ============
+
+  static Future<void> connectWebSocket(String userId, String role) async {
+    if (_isConnected) return;
+
+    try {
+      final token = await StorageService.getString(AppConstants.tokenKey);
+      if (token == null) throw Exception('No authentication token');
+
+      final wsUrl = Uri.parse('${AppConstants.wsUrl}/ws')
+          .replace(queryParameters: {
+            'userId': userId,
+            'role': role,
+            'token': token,
+          });
+
+      _channel = WebSocketChannel.connect(wsUrl);
+
+      _subscription = _channel!.stream.listen(
+        (message) {
+          try {
+            final data = jsonDecode(message) as Map<String, dynamic>;
+            _messageController.add(data);
+          } catch (e) {
+            debugPrint('Failed to parse WebSocket message: $e');
+          }
+        },
+        onError: (error) {
+          debugPrint('WebSocket error: $error');
+          _isConnected = false;
+        },
+        onDone: () {
+          debugPrint('WebSocket connection closed');
+          _isConnected = false;
+        },
+      );
+
+      // Wait for connection to be established
+      await _channel!.ready;
+      _isConnected = true;
+      debugPrint('WebSocket connected');
+    } catch (e) {
+      debugPrint('Failed to connect WebSocket: $e');
+      _isConnected = false;
+      rethrow;
+    }
+  }
+
+  static Future<void> disconnectWebSocket() async {
+    await _subscription?.cancel();
+    await _channel?.sink.close(status.goingAway);
+    _channel = null;
+    _isConnected = false;
+    debugPrint('WebSocket disconnected');
+  }
+
+  static void sendWebSocketMessage(Map<String, dynamic> message) {
+    if (_isConnected && _channel != null) {
+      _channel!.sink.add(jsonEncode(message));
+    } else {
+      debugPrint('WebSocket not connected, cannot send message');
     }
   }
 }
@@ -649,5 +887,71 @@ class RoleApplicationStatus {
       hasApplication: json['hasApplication'] ?? false,
       application: json['application'],
     );
+  }
+}
+
+class Notification {
+  final String id;
+  final String title;
+  final String message;
+  final String type;
+  final bool isRead;
+  final int priority;
+  final DateTime createdAt;
+
+  Notification({
+    required this.id,
+    required this.title,
+    required this.message,
+    required this.type,
+    required this.isRead,
+    required this.priority,
+    required this.createdAt,
+  });
+
+  factory Notification.fromJson(Map<String, dynamic> json) {
+    return Notification(
+      id: json['_id'] ?? json['id'] ?? '',
+      title: json['title'] ?? '',
+      message: json['message'] ?? '',
+      type: json['type'] ?? 'alert',
+      isRead: json['isRead'] ?? false,
+      priority: json['priority'] ?? 2,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt']) ?? DateTime.now()
+          : DateTime.now(),
+    );
+  }
+}
+
+class Contact {
+  final String id;
+  final String name;
+  final String phone;
+  final String relation;
+
+  Contact({
+    required this.id,
+    required this.name,
+    required this.phone,
+    required this.relation,
+  });
+
+  factory Contact.fromJson(Map<String, dynamic> json) {
+    return Contact(
+      id: json['_id'] ?? json['id'] ?? '',
+      name: json['name'] ?? '',
+      phone: json['phone'] ?? '',
+      relation: json['relation'] ?? 'Friend',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'phone': phone,
+      'relation': relation,
+    };
   }
 }

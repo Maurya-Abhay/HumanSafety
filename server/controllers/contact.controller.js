@@ -6,15 +6,17 @@ const addContact = async (req, res) => {
     const { name, phone, relation, priority } = req.body;
     if (!name || !phone) return res.status(400).json({ message: 'Name and phone required' });
     
+    const userId = req.user._id || req.user.userId;
+    
     const contact = await Contact.create({
-      userId: req.user.userId,
+      userId,
       name,
       phone,
       relation: relation || 'Friend',
       priority: priority || 1,
     });
     
-    await User.findByIdAndUpdate(req.user.userId, {
+    await User.findByIdAndUpdate(userId, {
       $push: { emergencyContacts: contact._id },
     });
     
@@ -29,8 +31,9 @@ const addContact = async (req, res) => {
 
 const getContacts = async (req, res) => {
   try {
+    const userId = req.user._id || req.user.userId;
     const contacts = await Contact.find({
-      userId: req.user.userId,
+      userId,
       isActive: true,
     }).sort({ priority: 1 });
     
@@ -53,12 +56,13 @@ const getContacts = async (req, res) => {
 const deleteContact = async (req, res) => {
   try {
     const { contactId } = req.params;
+    const userId = req.user._id || req.user.userId;
     await Contact.findOneAndUpdate(
-      { _id: contactId, userId: req.user.userId },
+      { _id: contactId, userId },
       { isActive: false }
     );
     
-    await User.findByIdAndUpdate(req.user.userId, {
+    await User.findByIdAndUpdate(userId, {
       $pull: { emergencyContacts: contactId },
     });
     

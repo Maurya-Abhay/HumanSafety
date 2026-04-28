@@ -10,18 +10,19 @@ const requestHelp = async (req, res) => {
     const locCheck = validateLocation(latitude, longitude);
     if (!locCheck.valid) return res.status(400).json({ message: locCheck.message });
     
+    const userId = req.user._id || req.user.userId;
     const radius = parseInt(process.env.DEFAULT_RADIUS_KM) || 5;
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
     
     const helpRequest = await HelpRequest.create({
-      requesterId: req.user.userId,
+      requesterId: userId,
       location: { latitude, longitude },
       radius,
       description: description || 'User needs help',
       expiresAt,
     });
     
-    const allUsers = await User.find({ _id: { $ne: req.user.userId }, isActive: true });
+    const allUsers = await User.find({ _id: { $ne: userId }, isActive: true });
     const nearby = getNearbyUsers(allUsers, latitude, longitude, radius);
     
     helpRequest.nearbyUsers = nearby;
@@ -52,7 +53,8 @@ const acceptHelp = async (req, res) => {
     if (!helpRequest) return res.status(404).json({ message: 'Help request not found' });
     if (helpRequest.status !== 'pending') return res.status(400).json({ message: 'Request already handled' });
     
-    helpRequest.helperId = req.user.userId;
+    const userId = req.user._id || req.user.userId;
+    helpRequest.helperId = userId;
     helpRequest.status = 'accepted';
     await helpRequest.save();
     

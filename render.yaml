@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: humansafety-api
+    runtime: node
+    buildCommand: cd server && npm install --production
+    startCommand: cd server && npm run prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: AI_ENGINE_URL
+        value: https://humansafety-ai.onrender.com
+      - key: CORS_ORIGIN
+        value: https://yourdomain.com
+
+  - type: web
+    name: humansafety-ai
+    runtime: python
+    buildCommand: cd ai-engine && pip install -r requirements.txt
+    startCommand: cd ai-engine && python main.py
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info

@@ -1,5 +1,5 @@
 const express = require('express');
-const { getProfile, updateProfile, updateLocation, getLocation } = require('../controllers/user.controller');
+const { getProfile, updateProfile, updateLocation, getLocation, applyRole } = require('../controllers/user.controller');
 const { verifyToken } = require('../middleware/auth.middleware');
 const { validateUserUpdate, validateLocationUpdate } = require('../middleware/validation.middleware');
 
@@ -17,5 +17,8 @@ router.post('/location', verifyToken, validateLocationUpdate, updateLocation);
 
 // GET /user/location - Get user location
 router.get('/location', verifyToken, getLocation);
+
+// POST /user/role-application - Apply for a role
+router.post('/role-application', verifyToken, applyRole);
 
 module.exports = router;

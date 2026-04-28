@@ -5,92 +5,86 @@ import '../../shared/models.dart';
 import '../../core/routes.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _phoneController = TextEditingController();
-  final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  final _phone = TextEditingController();
+  final _password = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: Padding(
           padding: const EdgeInsets.all(20),
           child: Form(
             key: _formKey,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 40),
-                Text(
-                  'Welcome Back',
-                  style: Theme.of(context).textTheme.displayMedium,
-                ),
-                const SizedBox(height: 8),
-                const Text('Login to your HumanSafety account'),
-                const SizedBox(height: 40),
-                CustomTextField(
-                  label: 'Phone',
-                  hint: 'Enter your phone number',
-                  controller: _phoneController,
-                  inputType: TextInputType.phone,
-                  validator: (value) {
-                    if (value?.isEmpty ?? true) return 'Phone is required';
-                    if (value!.length < 10) return 'Invalid phone';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
-                CustomTextField(
-                  label: 'Password',
-                  hint: 'Enter your password',
-                  controller: _passwordController,
-                  isPassword: true,
-                  validator: (value) {
-                    if (value?.isEmpty ?? true) return 'Password is required';
-                    if (value!.length < 6) return 'Password too short';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () => Navigator.pushNamed(context, AppRoutes.otp),
-                    child: const Text('Forgot Password?'),
-                  ),
-                ),
+
+                Text("Welcome Back",
+                    style: Theme.of(context).textTheme.headlineLarge),
+
                 const SizedBox(height: 30),
+
+                CustomTextField(
+                  label: "Phone",
+                  hint: "Enter your phone number",
+                  controller: _phone,
+                  inputType: TextInputType.phone,
+                ),
+
+                const SizedBox(height: 12),
+
+                CustomTextField(
+                  label: "Password",
+                  hint: "Enter your password",
+                  controller: _password,
+                  isPassword: true,
+                ),
+
+                const SizedBox(height: 25),
+
                 Consumer<AuthProvider>(
-                  builder: (context, authProvider, _) {
+                  builder: (context, auth, _) {
                     return PrimaryButton(
-                      label: 'Login',
-                      isLoading: authProvider.isLoading,
+                      label: "Login",
+                      isLoading: auth.isLoading,
                       onPressed: () async {
-                        if (_formKey.currentState!.validate()) {
-                          final success = await authProvider.login(
-                            _phoneController.text,
-                            _passwordController.text,
+                        if (!_formKey.currentState!.validate()) return;
+
+                        final ok = await auth.login(
+                          _phone.text,
+                          _password.text,
+                        );
+
+                        if (!context.mounted) return;
+
+                        if (ok) {
+                          final homeRoute = _homeRouteForRole(auth.user?.role ?? 'user');
+                          Navigator.pushNamedAndRemoveUntil(
+                            context,
+                            homeRoute,
+                            (r) => false,
                           );
-                          if (mounted && success) {
-                            Navigator.pushNamedAndRemoveUntil(
-                              context,
-                              AppRoutes.splash,
-                              (route) => false,
-                            );
-                          }
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(auth.error ?? 'Login failed')),
+                          );
                         }
                       },
                     );
                   },
                 ),
+
                 const SizedBox(height: 20),
+
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -109,10 +103,17 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
+  String _homeRouteForRole(String role) {
+    switch (role) {
+      case 'police':
+        return AppRoutes.policeDashboard;
+      case 'hospital':
+        return AppRoutes.hospitalDashboard;
+      case 'admin':
+        return AppRoutes.adminDashboard;
+      case 'user':
+      default:
+        return AppRoutes.userHome;
+    }
   }
 }

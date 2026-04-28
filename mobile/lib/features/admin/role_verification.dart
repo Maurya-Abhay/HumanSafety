@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -7,7 +8,7 @@ import '../../shared/models.dart';
 import '../../core/api_service.dart';
 
 class RoleVerificationScreen extends StatefulWidget {
-  const RoleVerificationScreen({Key? key}) : super(key: key);
+  const RoleVerificationScreen({super.key});
 
   @override
   State<RoleVerificationScreen> createState() => _RoleVerificationScreenState();
@@ -170,7 +171,7 @@ class _RoleVerificationScreenState extends State<RoleVerificationScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.2),
+                  color: statusColor.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -392,10 +393,10 @@ class _ApplicationDetailsSheet extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: status == 'approved'
-                        ? Colors.green.withOpacity(0.2)
+                        ? Colors.green.withValues(alpha: 0.2)
                         : status == 'rejected'
-                            ? Colors.red.withOpacity(0.2)
-                            : Colors.orange.withOpacity(0.2),
+                            ? Colors.red.withValues(alpha: 0.2)
+                            : Colors.orange.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
