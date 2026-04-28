@@ -35,7 +35,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         title: 'Admin Dashboard',
         showBackButton: false,
         actions: [
-          IconButton(icon: const Icon(Icons.settings), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => Navigator.pushNamed(context, AppRoutes.adminSettings),
+          ),
         ],
       ),
       body: _buildBody(),

@@ -77,4 +77,38 @@ const getNearbyHospitals = async (req, res) => {
   }
 };
 
-module.exports = { requestHospital, getNearbyHospitals };
+// Get hospital alerts (emergency cases)
+const getHospitalAlerts = async (req, res) => {
+  try {
+    const { Case, Emergency } = require('../models');
+    const userId = req.user._id;
+
+    // Get alerts assigned to this hospital
+    const alerts = await Alert.find({
+      type: 'hospital',
+      'metadata.hospitalId': userId,
+      status: { $in: ['pending', 'active'] }
+    })
+      .populate('userId', 'name phone')
+      .sort({ createdAt: -1 })
+      .limit(20);
+
+    const hospitalAlerts = alerts.map(a => ({
+      id: a._id,
+      caseId: a._id,
+      title: 'Emergency Case',
+      description: a.description || 'Hospital alert',
+      status: a.status,
+      priority: 'high',
+      location: a.location,
+      userId: a.userId?._id,
+      createdAt: a.createdAt,
+    }));
+
+    res.status(200).json(hospitalAlerts);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch alerts', error: error.message });
+  }
+};
+
+module.exports = { requestHospital, getNearbyHospitals, getHospitalAlerts };

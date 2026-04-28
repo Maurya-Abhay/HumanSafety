@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../core/api_service.dart';
 import '../core/storage_service.dart';
 import '../core/constants.dart';
@@ -193,21 +195,35 @@ class AuthProvider extends ChangeNotifier {
 
       _token = result.token;
 
-      User? resolvedUser;
-      if (result.user != null) {
-        resolvedUser = User.fromJson(result.user!);
-      }
+      final loginUser =
+          result.user != null ? User.fromJson(result.user!) : null;
+      User resolvedUser = loginUser ??
+          User(
+            id: '',
+            name: '',
+            email: '',
+            phone: phone,
+            role: 'user',
+          );
 
-      final profile = await ApiService.getUserProfile(_token!);
-      resolvedUser = User(
-        id: profile.id,
-        name: profile.name,
-        email: profile.email,
-        phone: profile.phone,
-        role: profile.role,
-        avatar: profile.avatar,
-        createdAt: profile.createdAt,
-      );
+      if (resolvedUser.role == 'user' || resolvedUser.name.isEmpty) {
+        try {
+          final profile = await ApiService.getUserProfile(_token!);
+          resolvedUser = User(
+            id: profile.id.isNotEmpty ? profile.id : resolvedUser.id,
+            name: profile.name.isNotEmpty ? profile.name : resolvedUser.name,
+            email:
+                profile.email.isNotEmpty ? profile.email : resolvedUser.email,
+            phone:
+                profile.phone.isNotEmpty ? profile.phone : resolvedUser.phone,
+            role: profile.role.isNotEmpty ? profile.role : resolvedUser.role,
+            avatar: profile.avatar ?? resolvedUser.avatar,
+            createdAt: profile.createdAt ?? resolvedUser.createdAt,
+          );
+        } catch (e) {
+          debugPrint('⚠️ Profile refresh skipped after login: $e');
+        }
+      }
 
       _user = resolvedUser;
       await StorageService.saveString(AppConstants.tokenKey, _token!);
@@ -496,6 +512,7 @@ class StatsProvider extends ChangeNotifier {
   Map<String, dynamic> _stats = {};
   bool _isLoading = false;
   String? _error;
+  String? _token;
 
   Map<String, dynamic> get stats => _stats;
   bool get isLoading => _isLoading;
@@ -513,14 +530,27 @@ class StatsProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // TODO: Implement API call
-      await Future.delayed(const Duration(seconds: 1));
-      _stats = {
-        'totalUsers': 150,
-        'totalCases': 45,
-        'resolvedCases': 32,
-        'avgResponseTime': 8.5,
-      };
+      if (_token == null) {
+        _error = 'No token available';
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      final statsResponse = await http.get(
+        Uri.parse('${ApiService.baseUrl}/api/v1/admin/dashboard'),
+        headers: {
+          'Authorization': 'Bearer $_token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (statsResponse.statusCode == 200) {
+        final data = jsonDecode(statsResponse.body);
+        _stats = data['stats'] ?? {};
+      } else {
+        _error = 'Failed to fetch stats: ${statsResponse.statusCode}';
+      }
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -530,6 +560,9 @@ class StatsProvider extends ChangeNotifier {
   }
 
   Future<void> fetchStats([String? token]) async {
+    if (token != null) {
+      _token = token;
+    }
     await loadStats();
   }
 }

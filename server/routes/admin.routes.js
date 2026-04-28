@@ -8,6 +8,9 @@ const {
   getPendingRequests,
   getSystemAnalytics,
   addAdminNotes,
+  getRoleApplications,
+  approveRoleApplication,
+  rejectRoleApplication,
 } = require('../controllers/admin.controller');
 const { verifyToken } = require('../middleware/auth.middleware');
 const { requireRole } = require('../middleware/role.middleware');
@@ -30,5 +33,10 @@ router.post('/users/:userId/notes', addAdminNotes);
 
 // Approval requests
 router.get('/requests', getPendingRequests);
+
+// Role applications management
+router.get('/role-applications', getRoleApplications);
+router.post('/role-applications/:appId/approve', approveRoleApplication);
+router.post('/role-applications/:appId/reject', rejectRoleApplication);
 
 module.exports = router;

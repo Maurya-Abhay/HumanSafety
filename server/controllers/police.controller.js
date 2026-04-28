@@ -161,10 +161,45 @@ const getAllPoliceOfficers = async (req, res) => {
   }
 };
 
+// Get police alerts (assigned cases)
+const getPoliceAlerts = async (req, res) => {
+  try {
+    const { Emergency, Case } = require('../models');
+    const userId = req.user._id;
+
+    // Get cases assigned to this police officer that are pending or in progress
+    const cases = await Case.find({
+      assignedTo: userId,
+      status: { $in: ['pending', 'in_progress'] }
+    })
+      .populate('userId', 'name phone')
+      .sort({ createdAt: -1 })
+      .limit(20);
+
+    const alerts = cases.map(c => ({
+      id: c._id,
+      caseId: c._id,
+      title: c.title || 'Emergency Case',
+      description: c.description || 'Assigned case',
+      status: c.status,
+      priority: c.priority || 'high',
+      location: c.location,
+      userId: c.userId?._id,
+      createdAt: c.createdAt,
+      assignedAt: c.updatedAt,
+    }));
+
+    res.status(200).json(alerts);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch alerts', error: error.message });
+  }
+};
+
 module.exports = {
   requestPoliceAccount,
   getPendingPoliceRequests,
   approvePolicRequest,
   rejectPoliceRequest,
   getAllPoliceOfficers,
+  getPoliceAlerts,
 };

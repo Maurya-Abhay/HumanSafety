@@ -202,6 +202,109 @@ const addAdminNotes = async (req, res) => {
   }
 };
 
+// Get role applications with filtering
+const getRoleApplications = async (req, res) => {
+  try {
+    const { status } = req.query;
+    
+    const filter = {};
+    if (status && ['pending', 'approved', 'rejected'].includes(status)) {
+      filter.status = status;
+    }
+
+    const applications = await User.find({
+      role: { $in: ['police', 'hospital'] },
+      ...filter
+    })
+      .select('-password')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      count: applications.length,
+      applications: applications.map(user => ({
+        id: user._id,
+        userId: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        status: user.status,
+        createdAt: user.createdAt,
+        policeDetails: user.policeDetails,
+        hospitalDetails: user.hospitalDetails,
+        adminNotes: user.adminNotes,
+      }))
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch role applications', error: error.message });
+  }
+};
+
+// Approve role application
+const approveRoleApplication = async (req, res) => {
+  try {
+    const { appId } = req.params;
+    const { approvalNotes } = req.body;
+
+    const user = await User.findById(appId);
+    if (!user) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
+
+    if (!['police', 'hospital'].includes(user.role)) {
+      return res.status(400).json({ message: 'Only police and hospital applications can be approved' });
+    }
+
+    user.status = 'active';
+    user.approvedBy = req.user._id;
+    user.approvedAt = new Date();
+    user.adminNotes = approvalNotes || user.adminNotes;
+    await user.save();
+
+    res.status(200).json({
+      message: 'Application approved',
+      applicationId: user._id,
+      status: user.status,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Approval failed', error: error.message });
+  }
+};
+
+// Reject role application
+const rejectRoleApplication = async (req, res) => {
+  try {
+    const { appId } = req.params;
+    const { rejectionReason } = req.body;
+
+    if (!rejectionReason) {
+      return res.status(400).json({ message: 'Rejection reason required' });
+    }
+
+    const user = await User.findById(appId);
+    if (!user) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
+
+    if (!['police', 'hospital'].includes(user.role)) {
+      return res.status(400).json({ message: 'Only police and hospital applications can be rejected' });
+    }
+
+    user.status = 'rejected';
+    user.rejectionReason = rejectionReason;
+    user.adminNotes = `Rejected: ${rejectionReason}`;
+    await user.save();
+
+    res.status(200).json({
+      message: 'Application rejected',
+      applicationId: user._id,
+      status: user.status,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Rejection failed', error: error.message });
+  }
+};
+
 module.exports = {
   getDashboardStats,
   getAllUsers,
@@ -211,4 +314,7 @@ module.exports = {
   getPendingRequests,
   getSystemAnalytics,
   addAdminNotes,
+  getRoleApplications,
+  approveRoleApplication,
+  rejectRoleApplication,
 };

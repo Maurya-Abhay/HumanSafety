@@ -40,8 +40,9 @@ class _RoleVerificationScreenState extends State<RoleVerificationScreen> {
       );
 
       if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
         setState(() {
-          _applications = jsonDecode(response.body);
+          _applications = data['applications'] ?? [];
           _isLoading = false;
         });
       } else {
@@ -230,14 +231,14 @@ class _RoleVerificationScreenState extends State<RoleVerificationScreen> {
       final authProvider = context.read<AuthProvider>();
       final token = authProvider.token;
 
-      final response = await http.put(
+      final response = await http.post(
         Uri.parse('${ApiService.baseUrl}/api/v1/admin/role-applications/$appId/approve'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
-          'adminNotes': 'Approved',
+          'approvalNotes': 'Approved',
         }),
       );
 
@@ -315,14 +316,14 @@ class _RoleVerificationScreenState extends State<RoleVerificationScreen> {
       final authProvider = context.read<AuthProvider>();
       final token = authProvider.token;
 
-      final response = await http.put(
+      final response = await http.post(
         Uri.parse('${ApiService.baseUrl}/api/v1/admin/role-applications/$appId/reject'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
-          'adminNotes': notes,
+          'rejectionReason': notes.isNotEmpty ? notes : 'Application rejected by admin',
         }),
       );
 
