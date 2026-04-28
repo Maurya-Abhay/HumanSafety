@@ -32,7 +32,8 @@ class User {
       phone: json['phone'] ?? '',
       role: json['role'] ?? 'user',
       isVerified: json['isVerified'] ?? false,
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
+      createdAt:
+          json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       avatar: json['avatar'],
     );
   }
@@ -79,7 +80,9 @@ class Case {
       description: json['description'] ?? '',
       status: json['status'] ?? 'pending',
       priority: json['priority'] ?? 'medium',
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
+          : DateTime.now(),
       location: json['location'],
       userId: json['userId'],
     );
@@ -128,7 +131,9 @@ class Notification {
       message: json['message'] ?? '',
       type: json['type'] ?? 'info',
       isRead: json['isRead'] ?? false,
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
+          : DateTime.now(),
       userId: json['userId'],
     );
   }
@@ -179,18 +184,36 @@ class AuthProvider extends ChangeNotifier {
     try {
       print('🔐 Attempting login for phone: $phone');
       final result = await ApiService.login(phone, password);
-      _token = result.token;
-      
-      if (result.token != null && result.user != null) {
-        _user = User.fromJson(result.user!);
-        await StorageService.saveString(AppConstants.tokenKey, _token!);
-        await StorageService.saveJson(AppConstants.userKey, _user!.toJson());
-        print('✅ Login successful for user: ${_user!.name}');
-        return true;
+
+      if (result.token == null) {
+        _error = 'Login failed - no token received';
+        print('❌ Login failed - no token received');
+        return false;
       }
-      _error = 'Login failed - no token received';
-      print('❌ Login failed - no token received');
-      return false;
+
+      _token = result.token;
+
+      User? resolvedUser;
+      if (result.user != null) {
+        resolvedUser = User.fromJson(result.user!);
+      }
+
+      final profile = await ApiService.getUserProfile(_token!);
+      resolvedUser = User(
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        phone: profile.phone,
+        role: profile.role,
+        avatar: profile.avatar,
+        createdAt: profile.createdAt,
+      );
+
+      _user = resolvedUser;
+      await StorageService.saveString(AppConstants.tokenKey, _token!);
+      await StorageService.saveJson(AppConstants.userKey, _user!.toJson());
+      print('✅ Login successful for user: ${_user!.name} (${_user!.role})');
+      return true;
     } catch (e) {
       _error = e.toString();
       print('❌ Login error: $e');
@@ -203,7 +226,7 @@ class AuthProvider extends ChangeNotifier {
 
   Future<Map<String, dynamic>?> fetchUserProfile() async {
     if (_token == null) return null;
-    
+
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -221,7 +244,7 @@ class AuthProvider extends ChangeNotifier {
       );
       await StorageService.saveJson(AppConstants.userKey, _user!.toJson());
       notifyListeners();
-      
+
       return {
         '_id': profile.id,
         'id': profile.id,
@@ -265,7 +288,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       final result = await ApiService.verifyOtp(phone, otp);
       _token = result.token;
-      
+
       if (result.token != null && result.user != null) {
         _user = User.fromJson(result.user!);
         await StorageService.saveString(AppConstants.tokenKey, _token!);
@@ -284,7 +307,8 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> signup(String phone, String password, String name, String email) async {
+  Future<bool> signup(
+      String phone, String password, String name, String email) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -292,7 +316,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       final result = await ApiService.signup(phone, password, name, email);
       _token = result.token;
-      
+
       if (result.token != null && result.user != null) {
         _user = User.fromJson(result.user!);
         await StorageService.saveString(AppConstants.tokenKey, _token!);
@@ -384,7 +408,8 @@ class CasesProvider extends ChangeNotifier {
     await loadCases();
   }
 
-  Future<void> reportIncident(double latitude, double longitude, String details) async {
+  Future<void> reportIncident(
+      double latitude, double longitude, String details) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -562,9 +587,21 @@ class ContactsProvider extends ChangeNotifier {
     try {
       // TODO: Implement storage loading
       _contacts = [
-        Contact(id: '1', name: 'Police Emergency', phone: '100', relation: 'Emergency Service'),
-        Contact(id: '2', name: 'Ambulance', phone: '108', relation: 'Medical Emergency'),
-        Contact(id: '3', name: 'Fire Service', phone: '101', relation: 'Fire Emergency'),
+        Contact(
+            id: '1',
+            name: 'Police Emergency',
+            phone: '100',
+            relation: 'Emergency Service'),
+        Contact(
+            id: '2',
+            name: 'Ambulance',
+            phone: '108',
+            relation: 'Medical Emergency'),
+        Contact(
+            id: '3',
+            name: 'Fire Service',
+            phone: '101',
+            relation: 'Fire Emergency'),
       ];
     } catch (e) {
       _error = e.toString();

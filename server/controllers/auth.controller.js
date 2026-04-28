@@ -73,6 +73,8 @@ const verifyOTPAndLogin = async (req, res) => {
         phone: user.phone,
         name: user.name,
         email: user.email,
+        role: user.role || 'user',
+        status: user.status || 'active',
       },
     });
 
@@ -134,6 +136,8 @@ const loginWithPassword = async (req, res) => {
         phone: user.phone,
         name: user.name,
         email: user.email,
+        role: user.role,
+        status: user.status,
       },
     });
 
