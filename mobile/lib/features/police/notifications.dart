@@ -12,11 +12,11 @@ class PoliceNotificationsScreen extends StatefulWidget {
 }
 
 class _PoliceNotificationsScreenState extends State<PoliceNotificationsScreen> {
-  // Mock data for filters
   String _selectedFilter = 'All';
   final List<String> _filters = ['All', 'Unread', 'Emergency', 'Patrol'];
 
-  final List<_PoliceNotificationItem> _notifications = const [
+  // List ko 'late' banaya taaki filters apply ho sakein
+  final List<_PoliceNotificationItem> _allNotifications = const [
     _PoliceNotificationItem(
       title: 'Emergency Alert',
       message: 'High-priority SOS from Sector 7. Respond immediately.',
@@ -24,6 +24,7 @@ class _PoliceNotificationsScreenState extends State<PoliceNotificationsScreen> {
       icon: Icons.emergency_rounded,
       isUnread: true,
       category: 'Emergency',
+      color: Colors.redAccent,
     ),
     _PoliceNotificationItem(
       title: 'Patrol Assignment',
@@ -32,6 +33,7 @@ class _PoliceNotificationsScreenState extends State<PoliceNotificationsScreen> {
       icon: Icons.directions_car_rounded,
       isUnread: false,
       category: 'Patrol',
+      color: Colors.blueAccent,
     ),
     _PoliceNotificationItem(
       title: 'Case Update',
@@ -40,8 +42,15 @@ class _PoliceNotificationsScreenState extends State<PoliceNotificationsScreen> {
       icon: Icons.assignment_rounded,
       isUnread: true,
       category: 'Emergency',
+      color: Colors.orangeAccent,
     ),
   ];
+
+  List<_PoliceNotificationItem> get _filteredNotifications {
+    if (_selectedFilter == 'All') return _allNotifications;
+    if (_selectedFilter == 'Unread') return _allNotifications.where((n) => n.isUnread).toList();
+    return _allNotifications.where((n) => n.category == _selectedFilter).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,81 +58,71 @@ class _PoliceNotificationsScreenState extends State<PoliceNotificationsScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       appBar: CustomAppBar(
         title: 'Notifications',
         showBackButton: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.person_outline_rounded, color: Colors.white),
-            onPressed: () =>
-                Navigator.pushNamed(context, AppRoutes.policeProfile),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings, color: Colors.white),
-            onPressed: () =>
-                Navigator.pushNamed(context, AppRoutes.policeSettings),
+            icon: const Icon(Icons.done_all_rounded, color: Colors.white),
+            tooltip: 'Mark all as read',
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('All notifications marked as read')),
+              );
+            },
           ),
         ],
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: isDark
-                ? [const Color(0xFF121212), const Color(0xFF1E1E2E)]
-                : [const Color(0xFFF8F9FA), Colors.white],
+      body: Column(
+        children: [
+          _buildFilterBar(theme),
+          Expanded(
+            child: _filteredNotifications.isEmpty
+                ? _buildEmptyState()
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: _filteredNotifications.length,
+                    itemBuilder: (context, index) {
+                      return _buildModernNotificationTile(
+                          _filteredNotifications[index], theme);
+                    },
+                  ),
           ),
-        ),
-        child: Column(
-          children: [
-            const SizedBox(height: 8),
-            _buildFilterChips(theme),
-            Expanded(
-              child: ListView.builder(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                physics: const BouncingScrollPhysics(),
-                itemCount: _notifications.length,
-                itemBuilder: (context, index) {
-                  return _buildModernNotificationTile(
-                      _notifications[index], theme);
-                },
-              ),
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildFilterChips(ThemeData theme) {
-    return SizedBox(
-      height: 60,
+  Widget _buildFilterBar(ThemeData theme) {
+    return Container(
+      height: 70,
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: _filters.length,
         itemBuilder: (context, index) {
-          final isSelected = _selectedFilter == _filters[index];
+          final filter = _filters[index];
+          final isSelected = _selectedFilter == filter;
           return Padding(
-            padding: const EdgeInsets.only(right: 10),
-            child: FilterChip(
-              label: Text(_filters[index]),
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(filter),
               selected: isSelected,
-              onSelected: (val) =>
-                  setState(() => _selectedFilter = _filters[index]),
+              onSelected: (val) => setState(() => _selectedFilter = filter),
               selectedColor: AppColors.primary,
-              checkmarkColor: Colors.white,
+              backgroundColor: theme.cardColor,
               labelStyle: TextStyle(
-                color: isSelected ? Colors.white : AppColors.grey,
+                color: isSelected ? Colors.white : Colors.grey.shade600,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15)),
-              backgroundColor: theme.cardColor,
-              side: BorderSide.none,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              side: BorderSide(
+                color: isSelected ? AppColors.primary : Colors.grey.withOpacity(0.2),
+              ),
+              showCheckmark: false,
               elevation: isSelected ? 4 : 0,
             ),
           );
@@ -132,86 +131,106 @@ class _PoliceNotificationsScreenState extends State<PoliceNotificationsScreen> {
     );
   }
 
-  Widget _buildModernNotificationTile(
-      _PoliceNotificationItem item, ThemeData theme) {
-    return Container(
+  Widget _buildModernNotificationTile(_PoliceNotificationItem item, ThemeData theme) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: theme.cardColor,
-        borderRadius: BorderRadius.circular(24),
-        border: item.isUnread
-            ? Border.all(
-                color: AppColors.primary.withValues(alpha: 0.3), width: 1.5)
-            : Border.all(color: Colors.transparent),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: item.isUnread 
+                ? item.color.withOpacity(0.1) 
+                : Colors.black.withOpacity(0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
           )
         ],
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: item.isUnread
-                ? AppColors.primary.withValues(alpha: 0.1)
-                : Colors.grey.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Icon(
-            item.icon,
-            color: item.isUnread ? AppColors.primary : Colors.grey,
-            size: 24,
-          ),
-        ),
-        title: Text(
-          item.title,
-          style: TextStyle(
-            fontWeight: item.isUnread ? FontWeight.bold : FontWeight.normal,
-            fontSize: 16,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Text(
-              item.message,
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
-                height: 1.3,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              item.time,
-              style: TextStyle(
-                color: Colors.grey[500],
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-        trailing: item.isUnread
-            ? Container(
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {},
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: item.color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(item.icon, color: item.color, size: 24),
                 ),
-              )
-            : null,
-        onTap: () {
-          // Mark as read
-          setState(() {
-            // In real app, update the item
-          });
-        },
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            item.title,
+                            style: TextStyle(
+                              fontWeight: item.isUnread ? FontWeight.w800 : FontWeight.w600,
+                              fontSize: 15,
+                              color: item.isUnread ? null : Colors.grey.shade700,
+                            ),
+                          ),
+                          Text(
+                            item.time,
+                            style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        item.message,
+                        style: TextStyle(
+                          color: item.isUnread ? Colors.black87 : Colors.grey.shade600,
+                          fontSize: 13,
+                          height: 1.4,
+                        ),
+                      ),
+                      if (item.isUnread) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: item.color.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'NEW ACTION',
+                            style: TextStyle(color: item.color, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.notifications_off_outlined, size: 80, color: Colors.grey.withOpacity(0.3)),
+          const SizedBox(height: 16),
+          Text('No notifications found', style: TextStyle(color: Colors.grey.shade500, fontSize: 16)),
+        ],
       ),
     );
   }
@@ -225,6 +244,7 @@ class _PoliceNotificationItem {
     required this.icon,
     required this.isUnread,
     required this.category,
+    required this.color,
   });
 
   final String title;
@@ -233,4 +253,5 @@ class _PoliceNotificationItem {
   final IconData icon;
   final bool isUnread;
   final String category;
+  final Color color;
 }

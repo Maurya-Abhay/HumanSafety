@@ -60,7 +60,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       appBar: CustomAppBar(
         title: 'Hospital Profile',
-        showBackButton: false,
+        showBackButton: true,
         actions: [
           if (!_isEditing)
             IconButton(

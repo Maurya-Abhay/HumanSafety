@@ -31,10 +31,12 @@ import '../features/hospital/requests.dart';
 import '../features/hospital/profile.dart' as hospital_profile;
 import '../features/hospital/ambulance.dart' show AmbulanceScreen;
 import '../features/hospital/cases.dart' show HospitalCasesScreen;
+import '../features/hospital/notifications.dart' as hospital_notifications;
+import '../features/hospital/settings.dart' as hospital_settings;
 
 /// POLICE
 import '../features/police/dashboard.dart' as police_dashboard;
-import '../features/police/alerts.dart' show AlertsScreen, PatrolScreen;
+import '../features/police/alerts.dart' show AlertsScreen;
 import '../features/police/cases.dart' as police_cases;
 import '../features/police/profile.dart' as police_profile;
 import '../features/police/notifications.dart' as police_notifications;
@@ -79,12 +81,13 @@ class AppRoutes {
   static const String hospitalAmbulance = '/hospital/ambulance';
   static const String hospitalCases = '/hospital/cases';
   static const String hospitalProfile = '/hospital/profile';
+  static const String hospitalNotifications = '/hospital/notifications';
+  static const String hospitalSettings = '/hospital/settings';
 
   /// POLICE
   static const String policeDashboard = '/police/dashboard';
   static const String policeAlerts = '/police/alerts';
   static const String policeCases = '/police/cases';
-  static const String policePatrol = '/police/patrol';
   static const String policeProfile = '/police/profile';
   static const String policeNotifications = '/police/notifications';
   static const String policeSettings = '/police/settings';
@@ -143,12 +146,14 @@ class AppRoutes {
       hospitalAmbulance: (_) => const AmbulanceScreen(),
       hospitalCases: (_) => const HospitalCasesScreen(),
       hospitalProfile: (_) => const hospital_profile.ProfileScreen(),
+      hospitalNotifications: (_) =>
+          const hospital_notifications.HospitalNotificationsScreen(),
+      hospitalSettings: (_) => const hospital_settings.HospitalSettingsScreen(),
 
       /// POLICE
       policeDashboard: (_) => const police_dashboard.DashboardScreen(),
       policeAlerts: (_) => const AlertsScreen(),
       policeCases: (_) => const police_cases.CasesScreen(),
-      policePatrol: (_) => const PatrolScreen(),
       policeProfile: (_) => const police_profile.ProfileScreen(),
       policeNotifications: (_) =>
           const police_notifications.PoliceNotificationsScreen(),
