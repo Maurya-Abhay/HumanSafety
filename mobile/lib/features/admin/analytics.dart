@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../shared/widgets.dart';
+import '../../core/routes.dart';
 import '../../core/theme.dart';
 import '../../core/api_service.dart';
 import '../../core/storage_service.dart';
@@ -61,7 +62,24 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const CustomAppBar(title: 'Analytics'),
+      appBar: CustomAppBar(
+        title: 'Analytics',
+        showBackButton: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_none_rounded, color: Colors.white),
+            onPressed: () => Navigator.pushNamed(context, AppRoutes.adminNotifications),
+          ),
+          IconButton(
+            icon: const Icon(Icons.person_outline_rounded, color: Colors.white),
+            onPressed: () => Navigator.pushNamed(context, AppRoutes.adminProfile),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings, color: Colors.white),
+            onPressed: () => Navigator.pushNamed(context, AppRoutes.adminSettings),
+          ),
+        ],
+      ),
       body: _isLoading
           ? const LoadingWidget()
           : _error != null
@@ -98,6 +116,21 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                     ),
                   ),
                 ),
+      bottomNavigationBar: CustomBottomNav(
+        currentIndex: 3,
+        onTap: (index) {
+          if (index == 0) Navigator.pushNamed(context, AppRoutes.adminDashboard);
+          if (index == 1) Navigator.pushNamed(context, AppRoutes.adminUsers);
+          if (index == 2) Navigator.pushNamed(context, AppRoutes.adminReports);
+          if (index == 3) Navigator.pushNamed(context, AppRoutes.adminAnalytics);
+        },
+        items: const [
+          BottomNavItem(icon: Icons.dashboard, label: 'Dashboard'),
+          BottomNavItem(icon: Icons.people, label: 'Users'),
+          BottomNavItem(icon: Icons.report, label: 'Reports'),
+          BottomNavItem(icon: Icons.analytics, label: 'Analytics'),
+        ],
+      ),
     );
   }
 
@@ -220,47 +253,6 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
           ),
         ),
       ],
-    );
-  }
-}
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: const TextStyle(color: AppColors.grey, fontSize: 14)),
-            const SizedBox(height: 4),
-            Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-          ],
-        ),
-        Text(unit, style: const TextStyle(color: AppColors.grey, fontSize: 12)),
-      ],
-    );
-  }
-
-  Widget _buildTrendRow(String day, int incidents, int resolved) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(day),
-          Row(
-            children: [
-              Chip(
-                label: Text('$incidents incidents'),
-                backgroundColor: AppColors.warning.withValues(alpha: 0.2),
-              ),
-              const SizedBox(width: 8),
-              Chip(
-                label: Text('$resolved resolved'),
-                backgroundColor: AppColors.success.withValues(alpha: 0.2),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }

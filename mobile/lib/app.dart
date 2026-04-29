@@ -5,6 +5,7 @@ import 'core/theme.dart';
 import 'core/routes.dart';
 import 'core/constants.dart';
 import 'core/sensor_service.dart';
+import 'features/auth/splash.dart';
 import 'shared/models.dart';
 
 class HumanSafetyApp extends StatelessWidget {
@@ -30,96 +31,31 @@ class HumanSafetyApp extends StatelessWidget {
             darkTheme: AppTheme.darkTheme,
             themeMode:
                 themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-
-            // FIXED: home + routes "/" conflict removed
-            initialRoute: AppRoutes.splash,
+            home: const _AppStartupWrapper(),
             routes: AppRoutes.getRoutes(),
-
-            // Dynamic first screen handler
-            onGenerateRoute: (settings) {
-              if (settings.name == AppRoutes.splash) {
-                return MaterialPageRoute(
-                  builder: (_) => _buildHome(context),
-                );
-              }
-              return null;
-            },
-
             debugShowCheckedModeBanner: false,
           );
         },
       ),
     );
   }
-
-  Widget _buildHome(BuildContext context) {
-    final authProvider = context.read<AuthProvider>();
-
-    if (!authProvider.isAuthenticated) {
-      return const _SplashWrapper();
-    }
-
-    // Load user profile from server to get role
-    return _LoadUserProfileWrapper();
-  }
 }
 
-class _SplashWrapper extends StatefulWidget {
-  const _SplashWrapper();
-
-  @override
-  State<_SplashWrapper> createState() => _SplashWrapperState();
-}
-
-class _SplashWrapperState extends State<_SplashWrapper> {
-  @override
-  void initState() {
-    super.initState();
-
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, AppRoutes.login);
-      }
-    });
-  }
+class _AppStartupWrapper extends StatelessWidget {
+  const _AppStartupWrapper();
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).primaryColor,
-      body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.shield_outlined, size: 80, color: Colors.white),
-            SizedBox(height: 20),
-            Text(
-              AppConstants.appName,
-              style: TextStyle(
-                fontSize: 30,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            SizedBox(height: 10),
-            Text(
-              'Your Safety, Our Priority',
-              style: TextStyle(fontSize: 16, color: Colors.white70),
-            ),
-            SizedBox(height: 40),
-            CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-          ],
-        ),
-      ),
-    );
+    return const SplashScreen();
   }
 }
 
 class _LoadUserProfileWrapper extends StatefulWidget {
+  const _LoadUserProfileWrapper();
+
   @override
-  State<_LoadUserProfileWrapper> createState() => _LoadUserProfileWrapperState();
+  State<_LoadUserProfileWrapper> createState() =>
+      _LoadUserProfileWrapperState();
 }
 
 class _LoadUserProfileWrapperState extends State<_LoadUserProfileWrapper> {
@@ -135,15 +71,15 @@ class _LoadUserProfileWrapperState extends State<_LoadUserProfileWrapper> {
       final casesProvider = context.read<CasesProvider>();
       final notificationsProvider = context.read<NotificationsProvider>();
       final statsProvider = context.read<StatsProvider>();
-      
+
       // Fetch user profile from server to get their role
       final response = await authProvider.fetchUserProfile();
-      
+
       if (mounted && response != null) {
         final role = response['role'] as String? ?? 'user';
         final userId = response['_id'] ?? response['id'] ?? '';
         final token = authProvider.token;
-        
+
         // Initialize providers with real data based on role
         if (token != null && userId.isNotEmpty) {
           if (role == 'user') {
@@ -165,7 +101,7 @@ class _LoadUserProfileWrapperState extends State<_LoadUserProfileWrapper> {
             }
           }
         }
-        
+
         // Navigate to appropriate home screen based on role
         if (mounted) {
           Navigator.pushReplacementNamed(

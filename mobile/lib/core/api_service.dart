@@ -698,6 +698,15 @@ class UserProfile {
   final String phone;
   final String role;
   final String? avatar;
+  final String? address;
+  final String? gender;
+  final String? dateOfBirth;
+  final String? bloodGroup;
+  final String? medicalConditions;
+  final String? emergencyContact;
+  final String? emergencyContactName;
+  final String? occupation;
+  final String? about;
   final DateTime? createdAt;
 
   UserProfile({
@@ -707,6 +716,15 @@ class UserProfile {
     required this.phone,
     required this.role,
     this.avatar,
+    this.address,
+    this.gender,
+    this.dateOfBirth,
+    this.bloodGroup,
+    this.medicalConditions,
+    this.emergencyContact,
+    this.emergencyContactName,
+    this.occupation,
+    this.about,
     this.createdAt,
   });
 
@@ -718,6 +736,15 @@ class UserProfile {
       phone: json['phone'] ?? '',
       role: json['role'] ?? 'user',
       avatar: json['avatar'],
+      address: json['address'] ?? json['location'] ?? '',
+      gender: json['gender'] ?? '',
+      dateOfBirth: json['dateOfBirth'] ?? json['dob'] ?? '',
+      bloodGroup: json['bloodGroup'] ?? '',
+      medicalConditions: json['medicalConditions'] ?? json['medical_history'] ?? '',
+      emergencyContact: json['emergencyContact'] ?? '',
+      emergencyContactName: json['emergencyContactName'] ?? json['emergency_name'] ?? '',
+      occupation: json['occupation'] ?? '',
+      about: json['about'] ?? '',
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'])
           : null,

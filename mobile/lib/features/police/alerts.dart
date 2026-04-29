@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../shared/widgets.dart';
+import '../../shared/models.dart'; // CaseItem model yahan se aayega
 import '../../core/theme.dart';
 import '../../core/api_service.dart';
 import '../../core/storage_service.dart';
 import '../../core/constants.dart';
+import '../../core/routes.dart';
 
+// --- ALERTS SCREEN (MODERNIZED) ---
 class AlertsScreen extends StatefulWidget {
   const AlertsScreen({super.key});
 
@@ -26,19 +29,21 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
   Future<void> _loadAlerts() async {
     try {
-      setState(() => _isLoading = true);
+      if (mounted) setState(() => _isLoading = true);
       _token = await StorageService.getString(AppConstants.tokenKey) ?? '';
       if (_token.isNotEmpty) {
         final cases = await ApiService.getPoliceAlerts(_token);
-        setState(() {
-          _cases = cases;
-          _error = null;
-        });
+        if (mounted) {
+          setState(() {
+            _cases = cases;
+            _error = null;
+          });
+        }
       }
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = e.toString());
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -47,13 +52,17 @@ class _AlertsScreenState extends State<AlertsScreen> {
       await ApiService.acceptEmergency(_token, caseId);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Case accepted successfully')),
+        SnackBar(
+          content: const Text('Case accepted successfully'),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
       _loadAlerts();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
       );
     }
   }
@@ -61,47 +70,134 @@ class _AlertsScreenState extends State<AlertsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const CustomAppBar(title: 'Alerts'),
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: CustomAppBar(
+        title: 'Emergency Alerts',
+        showBackButton: false,
+        actions: [
+          _buildActionCircle(Icons.notifications_none_rounded, AppRoutes.policeNotifications),
+          _buildActionCircle(Icons.person_outline_rounded, AppRoutes.policeProfile),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: _loadAlerts,
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _error != null
-                ? Center(child: Text('Error: $_error'))
+                ? _buildErrorView()
                 : _cases.isEmpty
-                    ? const Center(child: Text('No active alerts'))
+                    ? _buildEmptyView()
                     : ListView.builder(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(20),
                         itemCount: _cases.length,
-                        itemBuilder: (context, index) {
-                          final caseItem = _cases[index];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: CustomCard(
-                              child: ListTile(
-                                leading: const Icon(Icons.warning, color: AppColors.warning),
-                                title: Text(caseItem.description ?? 'Emergency Alert'),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('Location: ${caseItem.location?['address'] ?? 'Unknown'}'),
-                                    Text('Status: ${caseItem.status}'),
-                                  ],
-                                ),
-                                trailing: ElevatedButton(
-                                  onPressed: () => _acceptCase(caseItem.id),
-                                  child: const Text('Accept'),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
+                        itemBuilder: (context, index) => _buildAlertCard(_cases[index]),
                       ),
+      ),
+      bottomNavigationBar: _buildBottomNav(context, 1),
+    );
+  }
+
+  Widget _buildActionCircle(IconData icon, String route) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), shape: BoxShape.circle),
+      child: IconButton(
+        icon: Icon(icon, color: Colors.white, size: 22),
+        onPressed: () => Navigator.pushNamed(context, route),
       ),
     );
   }
+
+  Widget _buildAlertCard(CaseItem caseItem) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 10))],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(left: BorderSide(color: _getPriorityColor(caseItem.riskLevel), width: 6)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(caseItem.description ?? 'High Priority Alert',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    ),
+                    _buildRiskChip(caseItem.riskLevel),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_rounded, size: 16, color: Colors.grey),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(caseItem.location?['address'] ?? 'Fetching location...',
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                    ),
+                  ],
+                ),
+                const Divider(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Status: ${caseItem.status.toUpperCase()}',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                      ),
+                      onPressed: () => _acceptCase(caseItem.id),
+                      child: const Text('Accept Call', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getPriorityColor(String? risk) {
+    if (risk == 'High') return Colors.redAccent;
+    if (risk == 'Medium') return Colors.orangeAccent;
+    return Colors.greenAccent;
+  }
+
+  Widget _buildRiskChip(String? risk) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: _getPriorityColor(risk).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(risk ?? 'Low', 
+        style: TextStyle(color: _getPriorityColor(risk), fontWeight: FontWeight.bold, fontSize: 11)),
+    );
+  }
+
+  Widget _buildEmptyView() => const Center(child: Text('No active alerts at the moment', style: TextStyle(color: Colors.grey)));
+  Widget _buildErrorView() => Center(child: Text('Error: $_error', style: const TextStyle(color: Colors.redAccent)));
 }
 
+// --- CASES SCREEN (REFINED) ---
 class CasesScreen extends StatefulWidget {
   const CasesScreen({super.key});
 
@@ -123,19 +219,21 @@ class _CasesScreenState extends State<CasesScreen> {
 
   Future<void> _loadCases() async {
     try {
-      setState(() => _isLoading = true);
+      if (mounted) setState(() => _isLoading = true);
       _token = await StorageService.getString(AppConstants.tokenKey) ?? '';
       if (_token.isNotEmpty) {
         final cases = await ApiService.getPoliceAlerts(_token);
-        setState(() {
-          _cases = cases;
-          _error = null;
-        });
+        if (mounted) {
+          setState(() {
+            _cases = cases;
+            _error = null;
+          });
+        }
       }
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = e.toString());
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -143,137 +241,60 @@ class _CasesScreenState extends State<CasesScreen> {
     try {
       await ApiService.updateCaseStatus(_token, caseId, status);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Status updated to $status')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Status: $status'), backgroundColor: AppColors.primary));
       _loadCases();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const CustomAppBar(title: 'Cases'),
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: CustomAppBar(title: 'Active Cases', showBackButton: false),
       body: RefreshIndicator(
         onRefresh: _loadCases,
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : _error != null
-                ? Center(child: Text('Error: $_error'))
-                : _cases.isEmpty
-                    ? const Center(child: Text('No cases assigned'))
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _cases.length,
-                        itemBuilder: (context, index) {
-                          final caseItem = _cases[index];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: CustomCard(
-                              child: ListTile(
-                                leading: const Icon(Icons.description, color: AppColors.primary),
-                                title: Text(caseItem.description ?? 'Case'),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('Location: ${caseItem.location?['address'] ?? 'Unknown'}'),
-                                    Text('Status: ${caseItem.status}'),
-                                  ],
-                                ),
-                                trailing: PopupMenuButton<String>(
-                                  onSelected: (value) {
-                                    _updateStatus(caseItem.id, value);
-                                  },
-                                  itemBuilder: (context) => [
-                                    const PopupMenuItem(
-                                      value: 'in-progress',
-                                      child: Text('In Progress'),
-                                    ),
-                                    const PopupMenuItem(
-                                      value: 'resolved',
-                                      child: Text('Resolved'),
-                                    ),
-                                    const PopupMenuItem(
-                                      value: 'closed',
-                                      child: Text('Closed'),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+            : _cases.isEmpty
+                ? const Center(child: Text('No assigned cases found'))
+                : ListView.builder(
+                    padding: const EdgeInsets.all(20),
+                    itemCount: _cases.length,
+                    itemBuilder: (context, index) => _buildCaseCard(_cases[index]),
+                  ),
       ),
+      bottomNavigationBar: _buildBottomNav(context, 2),
     );
   }
-}
 
-class PatrolScreen extends StatelessWidget {
-  const PatrolScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: const CustomAppBar(title: 'Patrol'),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            const SizedBox(height: 12),
-            Container(
-              height: 300,
-              decoration: BoxDecoration(
-                color: AppColors.greyLight,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.map, size: 48, color: AppColors.grey),
-                    SizedBox(height: 12),
-                    Text('Live Patrol Map'),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Officers on Duty',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 12),
-            CustomCard(
-              child: ListTile(
-                leading: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.success),
-                  child: const Icon(Icons.person, color: Colors.white),
-                ),
-                title: const Text('Officer John'),
-                subtitle: const Text('Zone A - Active'),
-              ),
-            ),
-            const SizedBox(height: 12),
-            CustomCard(
-              child: ListTile(
-                leading: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.success),
-                  child: const Icon(Icons.person, color: Colors.white),
-                ),
-                title: const Text('Officer Sarah'),
-                subtitle: const Text('Zone B - Active'),
-              ),
-            ),
+  Widget _buildCaseCard(CaseItem item) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(16),
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+          child: const Icon(Icons.assignment_rounded, color: AppColors.primary),
+        ),
+        title: Text(item.description ?? 'Police Case', style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text('Status: ${item.status}', style: TextStyle(color: Colors.grey.shade600)),
+        trailing: PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert_rounded),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          onSelected: (val) => _updateStatus(item.id, val),
+          itemBuilder: (context) => [
+            const PopupMenuItem(value: 'in-progress', child: Text('In Progress')),
+            const PopupMenuItem(value: 'resolved', child: Text('Mark Resolved')),
+            const PopupMenuItem(value: 'closed', child: Text('Close Case')),
           ],
         ),
       ),
@@ -281,61 +302,22 @@ class PatrolScreen extends StatelessWidget {
   }
 }
 
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: const CustomAppBar(title: 'Police Profile'),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Theme.of(context).primaryColor,
-              ),
-              child: const Icon(Icons.local_police, size: 60, color: Colors.white),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Police Department',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            const Text('Public Safety Unit', style: TextStyle(color: AppColors.grey)),
-            const SizedBox(height: 32),
-            const CustomCard(
-              child: ListTile(
-                leading: Icon(Icons.location_on, color: AppColors.primary),
-                title: Text('Station'),
-                subtitle: Text('Central Police Station'),
-              ),
-            ),
-            const SizedBox(height: 12),
-            const CustomCard(
-              child: ListTile(
-                leading: Icon(Icons.phone, color: AppColors.primary),
-                title: Text('Emergency Line'),
-                subtitle: Text('+1 (555) 911-0000'),
-              ),
-            ),
-            const SizedBox(height: 12),
-            const CustomCard(
-              child: ListTile(
-                leading: Icon(Icons.email, color: AppColors.primary),
-                title: Text('Email'),
-                subtitle: Text('police@department.gov'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+// --- HELPER FOR BOTTOM NAV ---
+Widget _buildBottomNav(BuildContext context, int index) {
+  return CustomBottomNav(
+    currentIndex: index,
+    onTap: (i) {
+      if (i == index) return;
+      if (i == 0) Navigator.pushReplacementNamed(context, AppRoutes.policeDashboard);
+      if (i == 1) Navigator.pushReplacementNamed(context, AppRoutes.policeAlerts);
+      if (i == 2) Navigator.pushReplacementNamed(context, AppRoutes.policeCases);
+      if (i == 3) Navigator.pushReplacementNamed(context, AppRoutes.policeSettings);
+    },
+    items: const [
+      BottomNavItem(icon: Icons.dashboard_rounded, label: 'Home'),
+      BottomNavItem(icon: Icons.bolt_rounded, label: 'Alerts'),
+      BottomNavItem(icon: Icons.assignment_rounded, label: 'Cases'),
+      BottomNavItem(icon: Icons.settings_rounded, label: 'Settings'),
+    ],
+  );
 }

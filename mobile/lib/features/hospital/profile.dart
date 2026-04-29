@@ -179,7 +179,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildInfoItem('Hospital Name', context.read<AuthProvider>().user?.name ?? '-'),
           _buildInfoItem('Email', context.read<AuthProvider>().user?.email ?? '-'),
           _buildInfoItem('Phone', context.read<AuthProvider>().user?.phone ?? '-'),
-          _buildInfoItem('Status', context.read<AuthProvider>().user?.status ?? 'active'),
+          _buildInfoItem('Verified', context.read<AuthProvider>().user?.isVerified ?? false ? 'Yes' : 'No'),
           _buildInfoItem('Joined', DateTime.now().toString().split(' ')[0]),
         ],
       );

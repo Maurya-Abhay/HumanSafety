@@ -14,6 +14,15 @@ class User {
   final bool isVerified;
   final DateTime? createdAt;
   final String? avatar;
+  final String? address;
+  final String? gender;
+  final String? dateOfBirth;
+  final String? bloodGroup;
+  final String? medicalConditions;
+  final String? emergencyContact;
+  final String? emergencyContactName;
+  final String? occupation;
+  final String? about;
 
   User({
     required this.id,
@@ -24,7 +33,36 @@ class User {
     this.isVerified = false,
     this.createdAt,
     this.avatar,
+    this.address,
+    this.gender,
+    this.dateOfBirth,
+    this.bloodGroup,
+    this.medicalConditions,
+    this.emergencyContact,
+    this.emergencyContactName,
+    this.occupation,
+    this.about,
   });
+
+  int get profileCompletion {
+    final fields = [
+      name,
+      email,
+      phone,
+      address,
+      gender,
+      dateOfBirth,
+      bloodGroup,
+      medicalConditions,
+      emergencyContact,
+      avatar,
+    ];
+    final filled =
+        fields.where((value) => value != null && value.isNotEmpty).length;
+    return ((filled / fields.length) * 100).round();
+  }
+
+  bool get isProfileComplete => profileCompletion >= 80;
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
@@ -34,9 +72,21 @@ class User {
       phone: json['phone'] ?? '',
       role: json['role'] ?? 'user',
       isVerified: json['isVerified'] ?? false,
-      createdAt:
-          json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'])
+          : null,
       avatar: json['avatar'],
+      address: json['address'] ?? json['location'] ?? '',
+      gender: json['gender'] ?? '',
+      dateOfBirth: json['dateOfBirth'] ?? json['dob'] ?? '',
+      bloodGroup: json['bloodGroup'] ?? '',
+      medicalConditions:
+          json['medicalConditions'] ?? json['medical_history'] ?? '',
+      emergencyContact: json['emergencyContact'] ?? '',
+      emergencyContactName:
+          json['emergencyContactName'] ?? json['emergency_name'] ?? '',
+      occupation: json['occupation'] ?? '',
+      about: json['about'] ?? '',
     );
   }
 
@@ -50,6 +100,15 @@ class User {
       'isVerified': isVerified,
       'createdAt': createdAt?.toIso8601String(),
       'avatar': avatar,
+      'address': address,
+      'gender': gender,
+      'dateOfBirth': dateOfBirth,
+      'bloodGroup': bloodGroup,
+      'medicalConditions': medicalConditions,
+      'emergencyContact': emergencyContact,
+      'emergencyContactName': emergencyContactName,
+      'occupation': occupation,
+      'about': about,
     };
   }
 }
@@ -118,10 +177,13 @@ class Notification {
     required this.title,
     required this.message,
     required this.type,
-    this.isRead = false,
-    required this.createdAt,
+    bool? isRead,
+    bool? read,
+    DateTime? createdAt,
+    DateTime? timestamp,
     this.userId,
-  });
+  })  : isRead = isRead ?? read ?? false,
+        createdAt = createdAt ?? timestamp ?? DateTime.now();
 
   bool get read => isRead;
   DateTime get timestamp => createdAt;
@@ -151,18 +213,46 @@ class Notification {
       'userId': userId,
     };
   }
+
+  Notification copyWith({
+    String? id,
+    String? title,
+    String? message,
+    String? type,
+    bool? isRead,
+    bool? read,
+    DateTime? createdAt,
+    String? userId,
+  }) {
+    return Notification(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      message: message ?? this.message,
+      type: type ?? this.type,
+      isRead: isRead ?? read ?? this.isRead,
+      createdAt: createdAt ?? this.createdAt,
+      userId: userId ?? this.userId,
+    );
+  }
 }
 
 class AuthProvider extends ChangeNotifier {
   User? _user;
   bool _isLoading = false;
+  bool _isInitializing = true;
   String? _error;
   String? _token;
+  DateTime? _lastLoginTime;
 
   User? get user => _user;
   bool get isLoading => _isLoading;
+  bool get isInitializing => _isInitializing;
   String? get error => _error;
-  bool get isAuthenticated => _token != null && _user != null;
+  bool get isSessionExpired =>
+      _lastLoginTime != null &&
+      DateTime.now().difference(_lastLoginTime!).inDays >= 30;
+  bool get isAuthenticated =>
+      _token != null && _user != null && !isSessionExpired;
   String? get token => _token;
 
   AuthProvider() {
@@ -170,11 +260,28 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> loadSavedLogin() async {
+    _isInitializing = true;
+    notifyListeners();
+
     _token = await StorageService.getString(AppConstants.tokenKey);
+    final loginTime = await StorageService.getString(AppConstants.loginTimeKey);
+    if (loginTime != null) {
+      _lastLoginTime = DateTime.tryParse(loginTime);
+    }
+
+    if (_lastLoginTime != null && isSessionExpired) {
+      await logout();
+      _isInitializing = false;
+      notifyListeners();
+      return;
+    }
+
     final data = await StorageService.getJson(AppConstants.userKey);
     if (data != null) {
       _user = User.fromJson(data);
     }
+
+    _isInitializing = false;
     notifyListeners();
   }
 
@@ -226,7 +333,10 @@ class AuthProvider extends ChangeNotifier {
       }
 
       _user = resolvedUser;
+      _lastLoginTime = DateTime.now();
       await StorageService.saveString(AppConstants.tokenKey, _token!);
+      await StorageService.saveString(
+          AppConstants.loginTimeKey, _lastLoginTime!.toIso8601String());
       await StorageService.saveJson(AppConstants.userKey, _user!.toJson());
       print('✅ Login successful for user: ${_user!.name} (${_user!.role})');
       return true;
@@ -335,7 +445,10 @@ class AuthProvider extends ChangeNotifier {
 
       if (result.token != null && result.user != null) {
         _user = User.fromJson(result.user!);
+        _lastLoginTime = DateTime.now();
         await StorageService.saveString(AppConstants.tokenKey, _token!);
+        await StorageService.saveString(
+            AppConstants.loginTimeKey, _lastLoginTime!.toIso8601String());
         await StorageService.saveJson(AppConstants.userKey, _user!.toJson());
         return true;
       }
@@ -361,9 +474,11 @@ class AuthProvider extends ChangeNotifier {
     } finally {
       await StorageService.delete(AppConstants.tokenKey);
       await StorageService.delete(AppConstants.userKey);
+      await StorageService.delete(AppConstants.loginTimeKey);
       _user = null;
       _token = null;
       _error = null;
+      _lastLoginTime = null;
       notifyListeners();
     }
   }
@@ -373,13 +488,24 @@ class ThemeProvider extends ChangeNotifier {
   bool _isDarkMode = false;
   bool get isDarkMode => _isDarkMode;
 
-  void toggleTheme() {
-    _isDarkMode = !_isDarkMode;
+  ThemeProvider() {
+    loadSavedTheme();
+  }
+
+  Future<void> loadSavedTheme() async {
+    _isDarkMode = await StorageService.getBool('theme_dark_mode') ?? false;
     notifyListeners();
   }
 
-  void setTheme(bool isDark) {
+  Future<void> toggleTheme() async {
+    _isDarkMode = !_isDarkMode;
+    await StorageService.saveBool('theme_dark_mode', _isDarkMode);
+    notifyListeners();
+  }
+
+  Future<void> setTheme(bool isDark) async {
     _isDarkMode = isDark;
+    await StorageService.saveBool('theme_dark_mode', _isDarkMode);
     notifyListeners();
   }
 }
