@@ -52,7 +52,7 @@ dependencies:
   # PUSH NOTIFICATIONS
   firebase_messaging: ^16.2.0
   firebase_core: ^4.7.0
-  flutter_local_notifications: ^16.3.0
+  flutter_local_notifications: ^21.0.0
   
   # PERFORMANCE
   sqflite: ^2.3.0
