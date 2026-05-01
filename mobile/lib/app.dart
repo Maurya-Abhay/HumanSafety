@@ -3,11 +3,14 @@ import 'package:provider/provider.dart';
 
 import 'core/theme.dart';
 import 'core/routes.dart';
+import 'core/navigation_service.dart';
+import 'core/hardware_sos_controller.dart';
 import 'core/constants.dart';
 import 'core/emergency_orchestrator.dart';
 import 'core/sensor_service.dart';
 import 'core/audio_service.dart';
 import 'core/portal_sound_service.dart';
+import 'core/sos_launch_controller.dart';
 import 'features/auth/splash.dart';
 import 'shared/models.dart';
 
@@ -33,6 +36,7 @@ class HumanSafetyApp extends StatelessWidget {
         builder: (context, themeProvider, _) {
           return MaterialApp(
             title: AppConstants.appName,
+            navigatorKey: AppNavigationService.navigatorKey,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode:
@@ -47,8 +51,32 @@ class HumanSafetyApp extends StatelessWidget {
   }
 }
 
-class _AppStartupWrapper extends StatelessWidget {
+class _AppStartupWrapper extends StatefulWidget {
   const _AppStartupWrapper();
+
+  @override
+  State<_AppStartupWrapper> createState() => _AppStartupWrapperState();
+}
+
+class _AppStartupWrapperState extends State<_AppStartupWrapper> {
+  @override
+  void initState() {
+    super.initState();
+    // Check if app was launched due to SOS trigger
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final sosController = SosLaunchController();
+      if (sosController.shouldShowSosImmediately) {
+        sosController.consumed();
+        final source = sosController.triggerSource ?? 'volume_down';
+        // Arm the SOS and navigate directly to SOS screen
+        HardwareSosController.arm(source);
+        AppNavigationService.navigatorKey.currentState?.pushNamedAndRemoveUntil(
+          AppRoutes.sos,
+          (route) => false, // Remove all previous routes
+        );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -1,10 +1,30 @@
 import 'dart:async';
 
-// Local stub for hardware_buttons plugin so web/desktop builds compile.
-// Replace with the actual plugin or platform-specific implementation
-// when targeting Android/iOS devices and when the plugin is available.
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+
+// Android bridge for hardware volume button events.
+// On non-Android targets it intentionally stays empty so the app still runs.
 class HardwareButtons {
-  // Streams emit nothing by default; they exist so code referencing them compiles.
-  static Stream<void> get volumeDownButton => const Stream<void>.empty();
-  static Stream<void> get volumeUpButton => const Stream<void>.empty();
+  static const EventChannel _channel = EventChannel('humansafety/hardware_buttons');
+
+  static Stream<dynamic>? _sharedEvents;
+
+  static bool get _isAndroid => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  static Stream<dynamic> get _events {
+    if (!_isAndroid) {
+      return const Stream<dynamic>.empty();
+    }
+
+    return _sharedEvents ??= _channel.receiveBroadcastStream().asBroadcastStream();
+  }
+
+  static Stream<void> get volumeDownButton => _events
+      .where((event) => event is Map && event['key'] == 'volume_down')
+      .map<void>((_) {});
+
+  static Stream<void> get volumeUpButton => _events
+      .where((event) => event is Map && event['key'] == 'volume_up')
+      .map<void>((_) {});
 }

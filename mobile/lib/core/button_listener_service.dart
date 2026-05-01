@@ -1,13 +1,14 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:flutter/services.dart';
 import 'hardware_buttons.dart';
 import 'storage_service.dart';
-import 'api_service.dart';
-import 'sensor_service.dart';
+import 'hardware_sos_controller.dart';
+import 'navigation_service.dart';
+import 'routes.dart';
 
 // Listens to hardware volume button and detects triple-press for SOS.
+// Also listens to sos_triggered events from native AccessibilityKeyService.
 class ButtonListenerService {
   static final ButtonListenerService _instance = ButtonListenerService._internal();
   factory ButtonListenerService() => _instance;
@@ -15,9 +16,7 @@ class ButtonListenerService {
 
   StreamSubscription? _volumeDownSub;
   StreamSubscription? _volumeUpSub;
-  final List<int> _pressTimestamps = [];
-  final int _sequenceWindowMs = 1500; // triple press within 1.5s
-  final int _requiredPresses = 3;
+  StreamSubscription? _sosTriggeredSub;
 
   bool _enabled = true;
 
@@ -26,58 +25,39 @@ class ButtonListenerService {
     if (!_enabled) return;
 
     try {
-      // Subscribe to volume down button events (common for SOS triggers)
-      _volumeDownSub = HardwareButtons.volumeDownButton.listen((_) {
-        _onButtonPressed();
+      // Listen for sos_triggered events from native AccessibilityKeyService
+      const platform = EventChannel('humansafety/hardware_buttons');
+      _sosTriggeredSub = platform.receiveBroadcastStream().listen((event) {
+        if (event is Map && event['key'] == 'sos_triggered') {
+          _onSosTriggered(event['source'] ?? 'volume_down');
+        }
       });
-      
-      debugPrint('ButtonListenerService: hardware volume button stream attached');
+
+      debugPrint('ButtonListenerService: listening for hardware SOS triggers');
     } catch (e) {
       debugPrint('ButtonListenerService: failed to attach to hardware stream: $e');
     }
   }
 
-  void _onButtonPressed() async {
+  Future<void> _onSosTriggered(String source) async {
     if (!_enabled) return;
-    final now = DateTime.now().millisecondsSinceEpoch;
-    _pressTimestamps.add(now);
-    // Remove old timestamps
-    _pressTimestamps.retainWhere((ts) => now - ts <= _sequenceWindowMs);
-    if (_pressTimestamps.length >= _requiredPresses) {
-      _pressTimestamps.clear();
-      await _triggerSOS();
-    }
-  }
-
-  Future<void> _triggerSOS() async {
+    
     try {
-      final token = await ApiService.getValidToken();
-      if (token == null) {
-        debugPrint('ButtonListenerService: no token available, skipping SOS');
-        return;
-      }
-
-      // Try to get best recent position from SensorService, else fallback to Geolocator
-      Position? pos = SensorService().lastPosition;
-      if (pos == null) {
+      HardwareSosController.arm(source);
+      final pushed = AppNavigationService.navigatorKey.currentState?.pushNamed(AppRoutes.sos);
+      if (pushed == null) {
+        // App is backgrounded or navigator not ready — ask native Android to bring app to foreground
         try {
-          pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high).timeout(Duration(seconds: 5));
+          const platform = MethodChannel('humansafety/hardware_actions');
+          await platform.invokeMethod('bringToForeground', {'source': source});
         } catch (e) {
-          debugPrint('ButtonListenerService: failed to get location: $e');
+          debugPrint('ButtonListenerService: failed to call native bringToForeground: $e');
         }
       }
 
-      await ApiService.createPanicAlert(
-        token,
-        latitude: pos?.latitude ?? 0.0,
-        longitude: pos?.longitude ?? 0.0,
-        description: 'SOS triggered via hardware volume button',
-        sensorData: {'trigger': 'hardware_volume_button'},
-      );
-
-      debugPrint('ButtonListenerService: SOS sent');
+      debugPrint('ButtonListenerService: armed hardware SOS from $source');
     } catch (e) {
-      debugPrint('ButtonListenerService: failed to send SOS: $e');
+      debugPrint('ButtonListenerService: failed to arm SOS: $e');
     }
   }
 
@@ -93,5 +73,6 @@ class ButtonListenerService {
   Future<void> dispose() async {
     await _volumeDownSub?.cancel();
     await _volumeUpSub?.cancel();
+    await _sosTriggeredSub?.cancel();
   }
 }

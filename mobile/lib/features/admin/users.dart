@@ -376,7 +376,74 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   }
 
   Future<void> _toggleBlockUser(String userId) async {
-    // API calling logic remains the same...
-    // Note: Show a loading overlay while blocking/unblocking
+    final token = await StorageService.getString(AppConstants.tokenKey);
+    if (token == null) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Not authenticated')));
+      return;
+    }
+
+    final userIndex = _users.indexWhere((u) => u['_id'] == userId);
+    if (userIndex == -1) return;
+
+    final user = _users[userIndex];
+    final currentlyBlocked = user['isBlocked'] == true;
+
+    // If we're blocking, ask for a reason
+    String? reason;
+    if (!currentlyBlocked) {
+      reason = await showDialog<String>(
+        context: context,
+        builder: (ctx) {
+          final controller = TextEditingController();
+          return AlertDialog(
+            title: const Text('Block user'),
+            content: TextField(
+              controller: controller,
+              decoration: const InputDecoration(hintText: 'Reason for blocking'),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              ElevatedButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Block')),
+            ],
+          );
+        },
+      );
+
+      if (reason == null || reason.isEmpty) {
+        // user cancelled or did not provide reason
+        return;
+      }
+    }
+
+    try {
+      setState(() => _isLoading = true);
+      final dio = NetworkClient().client;
+      final endpoint = currentlyBlocked ? '/api/v1/admin/users/$userId/unblock' : '/api/v1/admin/users/$userId/block';
+      final data = currentlyBlocked ? {} : { 'blockReason': reason };
+
+      final resp = await dio.post(endpoint, data: data, options: Options(headers: {
+        'Authorization': 'Bearer $token',
+      }));
+
+      if (resp.statusCode == 200) {
+        // Update local state
+        setState(() {
+          _users[userIndex]['isBlocked'] = !currentlyBlocked;
+          if (!currentlyBlocked) {
+            _users[userIndex]['blockReason'] = reason;
+          } else {
+            _users[userIndex]['blockReason'] = null;
+          }
+        });
+
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(currentlyBlocked ? 'User unblocked' : 'User blocked')));
+      } else {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Action failed')));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 }

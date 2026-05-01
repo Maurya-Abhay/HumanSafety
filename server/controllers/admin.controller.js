@@ -305,6 +305,39 @@ const rejectRoleApplication = async (req, res) => {
   }
 };
 
+// Get all cases for admin review and reports
+const getAdminCases = async (req, res) => {
+  try {
+    const { status, limit = 100, skip = 0 } = req.query;
+
+    const filter = {};
+    if (status && ['pending', 'assigned', 'in-progress', 'resolved'].includes(status)) {
+      filter.status = status;
+    }
+
+    const Alert = require('../models/alert.model');
+    const cases = await Alert.find(filter)
+      .populate('reportedBy', 'name phone email')
+      .populate('assignedPolice', 'name policeDetails')
+      .populate('assignedHospital', 'name hospitalDetails')
+      .limit(parseInt(limit))
+      .skip(parseInt(skip))
+      .sort({ createdAt: -1 });
+
+    const total = await Alert.countDocuments(filter);
+
+    res.status(200).json({
+      total,
+      count: cases.length,
+      limit: parseInt(limit),
+      skip: parseInt(skip),
+      cases,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch cases', error: error.message });
+  }
+};
+
 module.exports = {
   getDashboardStats,
   getAllUsers,
@@ -317,4 +350,5 @@ module.exports = {
   getRoleApplications,
   approveRoleApplication,
   rejectRoleApplication,
+  getAdminCases,
 };

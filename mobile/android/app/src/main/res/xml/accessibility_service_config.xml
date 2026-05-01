@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeAllMask"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:notificationTimeout="100"
+    android:canRequestFilterKeyEvents="true"
+    android:canRetrieveWindowContent="false"
+    android:settingsActivity="">
+    <!-- Description resource shown to users when enabling the service -->
+    <meta-data android:name="android.accessibilityservice" android:resource="@xml/accessibility_service_config" />
+</accessibility-service>

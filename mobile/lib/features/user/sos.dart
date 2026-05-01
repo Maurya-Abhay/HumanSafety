@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
@@ -5,9 +7,11 @@ import '../../shared/widgets.dart';
 import '../../core/theme.dart';
 import '../../core/api_service.dart';
 import '../../core/emergency_orchestrator.dart';
+import '../../core/hardware_sos_controller.dart';
 import '../../core/sensor_service.dart';
 import '../../core/audio_service.dart';
 import '../../core/background_service.dart';
+import '../../core/portal_sound_service.dart';
 import '../../core/routes.dart';
 import '../../core/page_transitions.dart';
 import '../../shared/models.dart';
@@ -23,10 +27,13 @@ class SOSScreen extends StatefulWidget {
 
 class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
   bool _sosActive = false;
+  bool _hardwarePreAlertActive = false;
   CaseResponse? _caseResponse;
   bool _sensorMonitoring = false;
   DateTime? _activationStartedAt;
   bool _smartConfirmationShown = false;
+  int _hardwareCountdown = 10;
+  Timer? _hardwareCountdownTimer;
 
   // Animation Controllers for Premium Effects
   late AnimationController _pulseController;
@@ -53,14 +60,28 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
 
     _requestLocationPermission();
     _initializeSensorService();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkForHardwareTrigger();
+    });
   }
 
   @override
   void dispose() {
+    _hardwareCountdownTimer?.cancel();
     _pulseController.dispose();
     _holdController.dispose();
     _blastController.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkForHardwareTrigger() async {
+    final trigger = HardwareSosController.consumePendingTrigger();
+    if (trigger == null || !mounted) {
+      return;
+    }
+
+    await _startHardwarePreAlert(trigger.source);
   }
 
   void _onTapDown(TapDownDetails details) {
@@ -118,7 +139,7 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
         }
       }
 
-      final response = await orchestrator.triggerEmergency(
+      final response = await _sendEmergencyAlert(
         token: token,
         latitude: position.latitude,
         longitude: position.longitude,
@@ -145,7 +166,113 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
     }
   }
 
+  Future<void> _startHardwarePreAlert(String source) async {
+    _hardwareCountdownTimer?.cancel();
+    _activationStartedAt = DateTime.now();
+
+    if (!mounted) return;
+    setState(() {
+      _hardwarePreAlertActive = true;
+      _sosActive = false;
+      _smartConfirmationShown = false;
+      _hardwareCountdown = 10;
+      _caseResponse = null;
+    });
+
+    await context.read<PortalSoundService>().playSiren(loop: true);
+
+    _hardwareCountdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      if (_hardwareCountdown <= 1) {
+        timer.cancel();
+        await _finalizeHardwareEmergency(source);
+        return;
+      }
+
+      setState(() {
+        _hardwareCountdown -= 1;
+      });
+    });
+  }
+
+  Future<void> _finalizeHardwareEmergency(String source) async {
+    if (!mounted) return;
+
+    setState(() {
+      _hardwarePreAlertActive = false;
+      _sosActive = true;
+    });
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      if (!mounted) return;
+
+      final authProvider = context.read<AuthProvider>();
+      final token = authProvider.token;
+      if (token == null) {
+        throw Exception('Please login again before sending SOS');
+      }
+
+      final response = await _sendEmergencyAlert(
+        token: token,
+        latitude: position.latitude,
+        longitude: position.longitude,
+        confidenceScore: 95,
+        description: 'Hardware SOS activated from $source',
+        sensorData: {'trigger': source, 'hardware_pre_alert': true},
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _caseResponse = response;
+      });
+
+      await context.read<PortalSoundService>().stop();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(response.message ?? 'Emergency alert sent'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      await context.read<PortalSoundService>().stop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Hardware SOS failed: $e')),
+      );
+    }
+  }
+
+  Future<CaseResponse> _sendEmergencyAlert({
+    required String token,
+    required double latitude,
+    required double longitude,
+    required int confidenceScore,
+    required String description,
+    Map<String, dynamic>? sensorData,
+  }) async {
+    final orchestrator = context.read<EmergencyOrchestrator>();
+    return orchestrator.triggerEmergency(
+      token: token,
+      latitude: latitude,
+      longitude: longitude,
+      confidenceScore: confidenceScore,
+      description: description,
+      sensorData: sensorData,
+    );
+  }
+
   Future<void> _cancelSOS() async {
+    _hardwareCountdownTimer?.cancel();
+    await context.read<PortalSoundService>().stop();
+
     final startedAt = _activationStartedAt;
     if (startedAt != null) {
       await context.read<EmergencyOrchestrator>().recordAlertCancel(startedAt);
@@ -153,11 +280,18 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
 
     if (!mounted) return;
     setState(() {
+      _hardwarePreAlertActive = false;
       _sosActive = false;
       _holdController.reset();
       _caseResponse = null;
       _smartConfirmationShown = false;
+      _hardwareCountdown = 10;
     });
+  }
+
+  Future<void> _cancelHardwarePreAlert() async {
+    HardwareSosController.clear();
+    await _cancelSOS();
   }
 
   Future<bool> _showConfirmationDialog(String title, String message) async {
@@ -224,14 +358,20 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
                 _buildPremiumSOSButton(),
                 const SizedBox(height: 24),
                 Text(
-                  _sosActive ? 'TAP TO CANCEL ALERT' : 'PRESS & HOLD FOR 3 SECONDS',
+                  _hardwarePreAlertActive
+                      ? 'CANCEL EMERGENCY IN $_hardwareCountdown S'
+                      : (_sosActive ? 'TAP TO CANCEL ALERT' : 'PRESS & HOLD FOR 3 SECONDS'),
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
-                    color: _sosActive ? AppColors.error : AppColors.grey,
+                    color: _hardwarePreAlertActive || _sosActive ? AppColors.error : AppColors.grey,
                     letterSpacing: 1.5,
                     fontSize: 12,
                   ),
                 ),
+                if (_hardwarePreAlertActive) ...[
+                  const SizedBox(height: 18),
+                  _buildHardwarePreAlertCard(),
+                ],
                 if (_sosActive && _caseResponse != null) _buildActiveCard(),
                 const SizedBox(height: 50),
                 _buildMonitoringDashboard(isDark),
@@ -262,14 +402,18 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
 
   Widget _buildPremiumSOSButton() {
     return GestureDetector(
-      onTapDown: _onTapDown,
-      onTapUp: _onTapUp,
-      onTapCancel: _onTapCancel,
-      onTap: _sosActive ? _cancelSOS : null,
+      onTapDown: _hardwarePreAlertActive ? null : _onTapDown,
+      onTapUp: _hardwarePreAlertActive ? null : _onTapUp,
+      onTapCancel: _hardwarePreAlertActive ? null : _onTapCancel,
+      onTap: _hardwarePreAlertActive
+          ? _cancelHardwarePreAlert
+          : (_sosActive ? _cancelSOS : null),
       child: AnimatedBuilder(
         animation: Listenable.merge([_pulseController, _holdController]),
         builder: (context, child) {
-          final scale = _sosActive
+          final scale = _hardwarePreAlertActive
+              ? 1.0
+              : _sosActive
               ? 1.0 + (_pulseController.value * 0.05)
               : 1.0 - (_holdController.value * 0.05);
 
@@ -278,35 +422,40 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
             child: Stack(
               alignment: Alignment.center,
               children: [
-                SizedBox(
-                  width: 240,
-                  height: 240,
-                  child: CircularProgressIndicator(
-                    value: _sosActive ? 1.0 : _holdController.value,
-                    strokeWidth: 8,
-                    backgroundColor: Colors.transparent,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      _sosActive ? Colors.redAccent : Colors.red,
+                if (!_hardwarePreAlertActive)
+                  SizedBox(
+                    width: 240,
+                    height: 240,
+                    child: CircularProgressIndicator(
+                      value: _sosActive ? 1.0 : _holdController.value,
+                      strokeWidth: 8,
+                      backgroundColor: Colors.transparent,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        _sosActive ? Colors.redAccent : Colors.red,
+                      ),
                     ),
                   ),
-                ),
-                Container(
-                  width: 200,
-                  height: 200,
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: _hardwarePreAlertActive ? 260 : 200,
+                  height: _hardwarePreAlertActive ? 180 : 200,
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
+                    shape: _hardwarePreAlertActive ? BoxShape.rectangle : BoxShape.circle,
+                    borderRadius: _hardwarePreAlertActive ? BorderRadius.circular(22) : null,
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: _sosActive
-                          ? [Colors.red.shade800, Colors.red.shade900]
-                          : [const Color(0xFFEF4444), const Color(0xFFB91C1C)],
+                      colors: _hardwarePreAlertActive
+                          ? [const Color(0xFFB91C1C), const Color(0xFF7F1D1D)]
+                          : (_sosActive
+                              ? [Colors.red.shade800, Colors.red.shade900]
+                              : [const Color(0xFFEF4444), const Color(0xFFB91C1C)]),
                     ),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.red.withOpacity(0.4 + (_holdController.value * 0.4)),
-                        blurRadius: 30 + (_holdController.value * 20),
-                        spreadRadius: 10 + (_holdController.value * 15),
+                        blurRadius: _hardwarePreAlertActive ? 24 : 30 + (_holdController.value * 20),
+                        spreadRadius: _hardwarePreAlertActive ? 6 : 10 + (_holdController.value * 15),
                       ),
                       BoxShadow(
                         color: Colors.white.withOpacity(0.2),
@@ -320,20 +469,36 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          _sosActive ? Icons.wifi_tethering_rounded : Icons.fingerprint_rounded,
-                          size: 60,
+                          _hardwarePreAlertActive
+                              ? Icons.emergency_rounded
+                              : (_sosActive ? Icons.wifi_tethering_rounded : Icons.fingerprint_rounded),
+                          size: _hardwarePreAlertActive ? 44 : 60,
                           color: Colors.white,
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          _sosActive ? 'ACTIVE' : 'SOS',
-                          style: const TextStyle(
+                          _hardwarePreAlertActive
+                              ? 'CANCEL EMERGENCY'
+                              : (_sosActive ? 'ACTIVE' : 'SOS'),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
                             color: Colors.white,
-                            fontSize: 32,
+                            fontSize: _hardwarePreAlertActive ? 20 : 32,
                             fontWeight: FontWeight.w900,
-                            letterSpacing: 2,
+                            letterSpacing: _hardwarePreAlertActive ? 1.2 : 2,
                           ),
                         ),
+                        if (_hardwarePreAlertActive) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            'Auto alert in $_hardwareCountdown seconds',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -403,6 +568,68 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildHardwarePreAlertCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.red.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.red.withOpacity(0.28)),
+      ),
+      child: Column(
+        children: [
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
+              SizedBox(width: 8),
+              Text(
+                'EMERGENCY PENDING',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Release to send automatically. Tap Cancel Emergency if this was accidental.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.4,
+              color: Colors.red.shade900,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _cancelHardwarePreAlert,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.red,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.zero,
+                ),
+                elevation: 0,
+              ),
+              child: const Text(
+                'CANCEL EMERGENCY',
+                style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

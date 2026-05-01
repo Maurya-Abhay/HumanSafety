@@ -24,7 +24,7 @@ class PortalSoundService extends ChangeNotifier {
 
   Future<void> playNotification() => _playAsset('notification_ping.mp3');
   Future<void> playAlert() => _playAsset('short_alert_beep.mp3');
-  Future<void> playSiren() => _playAsset('siren_alarm.mp3');
+  Future<void> playSiren({bool loop = true}) => _playAsset('siren_alarm.mp3', loop: loop);
   Future<void> playCrash() => _playAsset('car_crash_impact.mp3');
   Future<void> playVehicleCollision() => _playAsset('vehicle_collision.mp3');
 
@@ -50,13 +50,14 @@ class PortalSoundService extends ChangeNotifier {
     }
   }
 
-  Future<void> _playAsset(String assetName) async {
+  Future<void> _playAsset(String assetName, {bool loop = false}) async {
     if (_isMuted) return;
 
     try {
       _lastPlayed = assetName;
       notifyListeners();
       await _player.stop();
+      await _player.setReleaseMode(loop ? ReleaseMode.loop : ReleaseMode.stop);
       await _player.play(AssetSource('audio/$assetName'));
     } catch (e) {
       debugPrint('PortalSoundService error: $e');

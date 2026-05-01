@@ -4,7 +4,7 @@ import '../../shared/widgets.dart';
 import '../../shared/models.dart';
 import '../../core/routes.dart';
 import '../../core/storage_service.dart';
-import '../../core/constants.dart';
+// constants not required here
 import '../../core/theme.dart';
 
 class HospitalSettingsScreen extends StatefulWidget {
@@ -102,21 +102,30 @@ class _HospitalSettingsScreenState extends State<HospitalSettingsScreen> {
               'Emergency Alerts',
               'Receive critical emergency notifications',
               _emergencyAlertsEnabled,
-              (value) => setState(() => _emergencyAlertsEnabled = value),
+              (value) {
+                setState(() => _emergencyAlertsEnabled = value);
+                StorageService.saveBool('emergencyAlerts', value);
+              },
               Icons.emergency_rounded,
             ),
             _buildToggleItem(
               'Ambulance Tracking',
               'Enable real-time ambulance location tracking',
               _ambulanceTrackingEnabled,
-              (value) => setState(() => _ambulanceTrackingEnabled = value),
+              (value) {
+                setState(() => _ambulanceTrackingEnabled = value);
+                StorageService.saveBool('ambulanceTracking', value);
+              },
               Icons.directions_car_rounded,
             ),
             _buildToggleItem(
               'Push Notifications',
               'Receive notifications for new requests',
               _notificationsEnabled,
-              (value) => setState(() => _notificationsEnabled = value),
+              (value) {
+                setState(() => _notificationsEnabled = value);
+                StorageService.saveBool('notifications', value);
+              },
               Icons.notifications_rounded,
             ),
             const SizedBox(height: 24),
@@ -128,6 +137,7 @@ class _HospitalSettingsScreenState extends State<HospitalSettingsScreen> {
               _darkModeEnabled,
               (value) {
                 setState(() => _darkModeEnabled = value);
+                StorageService.saveBool('darkMode', value);
                 // Update theme provider
                 final themeProvider =
                     Provider.of<ThemeProvider>(context, listen: false);
@@ -252,7 +262,7 @@ class _HospitalSettingsScreenState extends State<HospitalSettingsScreen> {
         ),
         value: value,
         onChanged: onChanged,
-        activeColor: AppColors.primary,
+        activeThumbColor: AppColors.primary,
       ),
     );
   }

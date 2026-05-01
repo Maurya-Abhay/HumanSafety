@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../../shared/widgets.dart';
 import '../../shared/models.dart';
 import '../../core/theme.dart';
-import '../../core/api_service.dart';
 import '../../core/storage_service.dart';
 import '../../core/constants.dart';
 
@@ -42,8 +41,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _saveProfile() async {
     try {
-      final token = await StorageService.getString(AppConstants.tokenKey);
-      // TODO: Call API to update profile
+      await StorageService.saveString('hospital_name', _nameController.text.trim());
+      await StorageService.saveString('hospital_email', _emailController.text.trim());
+      await StorageService.saveString('hospital_phone', _phoneController.text.trim());
+      await StorageService.saveString('hospital_address', _addressController.text.trim());
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile updated successfully')),
       );

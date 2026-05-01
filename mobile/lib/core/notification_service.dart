@@ -50,7 +50,9 @@ class NotificationService {
         iOS: iosInitializationSettings,
       );
 
-      await _flutterLocalNotificationsPlugin.initialize(initializationSettings);
+      await _flutterLocalNotificationsPlugin.initialize(
+        settings: initializationSettings,
+      );
 
       // Handle message when app is in foreground
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -138,10 +140,10 @@ class NotificationService {
     );
 
     await _flutterLocalNotificationsPlugin.show(
-      DateTime.now().millisecond,
-      title,
-      body,
-      notificationDetails,
+      id: DateTime.now().millisecondsSinceEpoch % 100000,
+      title: title,
+      body: body,
+      notificationDetails: notificationDetails,
       payload: payload != null ? payload.toString() : null,
     );
   }

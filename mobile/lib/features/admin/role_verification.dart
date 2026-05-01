@@ -331,15 +331,74 @@ class _RoleVerificationScreenState extends State<RoleVerificationScreen> {
   // ... (Keeping _approveApplication and _rejectApplication logic same as user provided) ...
   // --- logic same as above ---
   Future<void> _approveApplication(String appId) async {
-    // logic from user's snippet
+    try {
+      setState(() => _isLoading = true);
+      final authProvider = context.read<AuthProvider>();
+      final token = authProvider.token;
+      final dio = NetworkClient().client;
+
+      final resp = await dio.post('/api/v1/admin/role-applications/$appId/approve', data: {}, options: Options(headers: {
+        'Authorization': 'Bearer $token',
+      }));
+
+      if (resp.statusCode == 200) {
+        _showToast('Application approved', Colors.green);
+        await _fetchApplications();
+      } else {
+        _showToast('Approval failed', Colors.red);
+      }
+    } catch (e) {
+      _showToast('Error: $e', Colors.red);
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   void _showRejectDialog(String appId) {
-    // logic from user's snippet
+    final controller = TextEditingController();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reject Application'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(hintText: 'Reason for rejection'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () {
+            final reason = controller.text.trim();
+            Navigator.pop(ctx);
+            if (reason.isNotEmpty) _rejectApplication(appId, reason);
+            else _showToast('Please provide a reason', Colors.orange);
+          }, child: const Text('Reject')),
+        ],
+      ),
+    );
   }
 
   Future<void> _rejectApplication(String appId, String notes) async {
-    // logic from user's snippet
+    try {
+      setState(() => _isLoading = true);
+      final authProvider = context.read<AuthProvider>();
+      final token = authProvider.token;
+      final dio = NetworkClient().client;
+
+      final resp = await dio.post('/api/v1/admin/role-applications/$appId/reject', data: { 'rejectionReason': notes }, options: Options(headers: {
+        'Authorization': 'Bearer $token',
+      }));
+
+      if (resp.statusCode == 200) {
+        _showToast('Application rejected', Colors.green);
+        await _fetchApplications();
+      } else {
+        _showToast('Rejection failed', Colors.red);
+      }
+    } catch (e) {
+      _showToast('Error: $e', Colors.red);
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 }
 

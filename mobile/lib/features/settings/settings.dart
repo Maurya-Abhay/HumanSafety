@@ -361,7 +361,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         leading: _buildIconBg(Icons.volume_up_rounded, Colors.green),
         title: const Text('Hardware Volume Button SOS', style: TextStyle(fontWeight: FontWeight.w500)),
-        subtitle: const Text('Triple-press volume button to trigger SOS', style: TextStyle(fontSize: 12)),
+        subtitle: const Text('Triple-press volume up or down to open the cancel countdown', style: TextStyle(fontSize: 12)),
         trailing: FutureBuilder<bool>(
           future: ButtonListenerService().isEnabled(),
           builder: (context, snapshot) {

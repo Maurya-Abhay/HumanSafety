@@ -13,16 +13,36 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Initialize environment configuration first
+  // Essential initialization only (keep startup fast)
   await EnvConfig.initialize();
   EnvConfig.debugPrint('API Base URL: ${EnvConfig.apiBaseUrl}');
   EnvConfig.debugPrint('WebSocket URL: ${EnvConfig.wsBaseUrl}');
-  
+
+  // Storage is required early for settings; initialize before UI
   await StorageService.init();
-  await ButtonListenerService().initialize();
-  await BackgroundService.initialize();
-  await EmergencyOrchestrator().initialize();
-  await AudioService().initialize();
-  await PortalSoundService().initialize();
-  await PermissionService.requestEssentialPermissions();
+
+  // Start the app immediately; defer heavy/nonessential inits
   runApp(const HumanSafetyApp());
+
+  // Initialize background services without blocking UI
+  Future.microtask(() async {
+    try {
+      // Lightweight listener for hardware buttons (important)
+      ButtonListenerService().initialize();
+
+      // Non-UI background tasks
+      BackgroundService.initialize();
+      EmergencyOrchestrator().initialize();
+
+      // Audio and portal sound can initialize lazily; run in background
+      AudioService().initialize();
+      PortalSoundService().initialize();
+
+      // Request essential permissions in background (will prompt UI when needed)
+      PermissionService.requestEssentialPermissions();
+    } catch (e) {
+      // Don't crash the app if background init fails
+      debugPrint('Background init error: $e');
+    }
+  });
 }

@@ -478,60 +478,92 @@ class CustomBottomNav extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      // STICKY SQUARE DESIGN: No rounding at all
+      // STICKY SQUARE BASE: premium square tiles for each nav item
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF121212) : Colors.white,
+        color: isDark ? const Color(0xFF0B0B0B) : Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.4 : 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
+            color: Colors.black.withOpacity(isDark ? 0.45 : 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, -3),
           ),
         ],
         border: Border(
           top: BorderSide(
-            color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
-            width: 1, // Ekdum patli line
+            color: isDark ? Colors.white10 : Colors.black.withOpacity(0.06),
+            width: 1,
           ),
         ),
       ),
       child: SafeArea(
         top: false,
         child: Padding(
-          // PADDING REDUCED: Isse footer patla (sleek) dikhega
-          padding: const EdgeInsets.symmetric(vertical: 6),
+          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(items.length, (index) {
               final isSelected = currentIndex == index;
               final item = items[index];
+              const double tileSize = 40;
 
-              return InkWell(
-                // Modern touch feel
-                onTap: onTap == null ? null : () => onTap!(index),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              return Expanded(
+                child: InkWell(
+                  onTap: onTap == null ? null : () => onTap!(index),
+                  splashFactory: InkRipple.splashFactory,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        item.icon,
-                        color: isSelected
-                            ? AppColors.primary
-                            : Colors.grey.shade500,
-                        size: 24, // Reduced size for premium look
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 220),
+                        height: 2,
+                        width: isSelected ? 18 : 0,
+                        decoration: BoxDecoration(
+                          color: isSelected ? AppColors.primary : Colors.transparent,
+                          borderRadius: BorderRadius.zero,
+                        ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        item.label,
-                        style: TextStyle(
-                          fontSize: 10, // Small & clean
-                          fontWeight:
-                              isSelected ? FontWeight.w700 : FontWeight.w500,
+                      const SizedBox(height: 4),
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 220),
+                        width: tileSize,
+                        height: tileSize,
+                        decoration: BoxDecoration(
                           color: isSelected
                               ? AppColors.primary
-                              : Colors.grey.shade500,
+                              : (isDark ? Colors.white12 : Colors.grey.shade100),
+                          borderRadius: BorderRadius.zero,
+                          border: Border.all(
+                            color: isSelected
+                                ? AppColors.primary.withOpacity(0.95)
+                                : (isDark ? Colors.white12 : Colors.black12),
+                            width: isSelected ? 0 : 0.5,
+                          ),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: AppColors.primary.withOpacity(0.18),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ]
+                              : [],
+                        ),
+                        child: Center(
+                          child: Icon(
+                            item.icon,
+                            size: 22,
+                            color: isSelected ? Colors.white : Colors.grey.shade700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        item.label,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                          color: isSelected ? AppColors.primary : Colors.grey.shade600,
                         ),
                       ),
                     ],

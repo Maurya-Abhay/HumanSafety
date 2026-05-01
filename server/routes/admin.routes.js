@@ -11,6 +11,7 @@ const {
   getRoleApplications,
   approveRoleApplication,
   rejectRoleApplication,
+  getAdminCases,
 } = require('../controllers/admin.controller');
 const { verifyToken } = require('../middleware/auth.middleware');
 const { requireRole } = require('../middleware/role.middleware');
@@ -23,6 +24,9 @@ router.use(verifyToken, requireRole('admin'));
 // Dashboard
 router.get('/dashboard', getDashboardStats);
 router.get('/analytics', getSystemAnalytics);
+
+// Cases (reports)
+router.get('/cases', getAdminCases);
 
 // User management
 router.get('/users', getAllUsers);

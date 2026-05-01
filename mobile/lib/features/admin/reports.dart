@@ -35,33 +35,40 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       final token = await StorageService.getString(AppConstants.tokenKey);
 
       final dio = NetworkClient().client;
-      final resp = await dio.get('/api/v1/cases/pending', options: Options(headers: {
-        'Authorization': 'Bearer $token',
-      }));
+      final Map<String, String>? queryParams = _statusFilter == 'all' ? null : {'status': _statusFilter};
+      final resp = await dio.get(
+        '/api/v1/admin/cases',
+        queryParameters: queryParams,
+        options: Options(headers: {
+          'Authorization': 'Bearer $token',
+        }),
+      );
 
       if (resp.statusCode == 200) {
         final data = resp.data is String ? jsonDecode(resp.data) : resp.data;
         setState(() {
-          _reports = (data as Map<String, dynamic>)['cases'] ?? data ?? [];
+          final casesList = (data as Map)['cases'] as List? ?? [];
+          _reports = casesList.cast<Map<String, dynamic>>();
           _isLoading = false;
+          _error = null;
         });
       } else {
         setState(() {
-          _error = 'Failed to fetch reports';
+          _error = 'Failed to fetch reports (${resp.statusCode})';
           _isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _error = 'Error: ${e.toString()}';
         _isLoading = false;
       });
     }
   }
 
   List<dynamic> _getFilteredReports() {
-    if (_statusFilter == 'all') return _reports;
-    return _reports.where((r) => r['status'] == _statusFilter).toList();
+    // Already filtered by API if _statusFilter != 'all'
+    return _reports;
   }
 
   @override
@@ -150,7 +157,13 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   }
 
   Widget _buildFilterSection(ThemeData theme) {
-    final filters = ['all', 'pending', 'active', 'resolved'];
+    final filters = [
+      {'key': 'all', 'label': 'All'},
+      {'key': 'pending', 'label': 'Pending'},
+      {'key': 'assigned', 'label': 'Assigned'},
+      {'key': 'in-progress', 'label': 'In Progress'},
+      {'key': 'resolved', 'label': 'Resolved'},
+    ];
     return Container(
       height: 50,
       margin: const EdgeInsets.symmetric(vertical: 10),
@@ -159,14 +172,18 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 20),
         itemCount: filters.length,
         itemBuilder: (context, index) {
-          final filter = filters[index];
+          final filter = filters[index]['key']!;
+          final label = filters[index]['label']!;
           final isSelected = _statusFilter == filter;
           return Padding(
             padding: const EdgeInsets.only(right: 10),
             child: ChoiceChip(
-              label: Text(filter[0].toUpperCase() + filter.substring(1)),
+              label: Text(label),
               selected: isSelected,
-              onSelected: (_) => setState(() => _statusFilter = filter),
+              onSelected: (_) {
+                setState(() => _statusFilter = filter);
+                _fetchReports();
+              },
               selectedColor: AppColors.primary,
               labelStyle: TextStyle(
                 color: isSelected ? Colors.white : AppColors.grey,
@@ -357,8 +374,10 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     switch (status) {
       case 'pending':
         return Colors.orange;
-      case 'active':
-        return Colors.redAccent;
+      case 'assigned':
+        return Colors.blue;
+      case 'in-progress':
+        return Colors.amber;
       case 'resolved':
         return AppColors.success;
       default:
