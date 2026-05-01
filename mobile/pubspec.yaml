@@ -1,4 +1,4 @@
-name: human_safety
+name: HumanSafety
 description: Next-generation emergency safety system app.
 publish_to: none
 
@@ -13,35 +13,48 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.5
   
-  # ============== API & NETWORKING ==============
+  # API & NETWORKING
   http: ^1.1.0
   dio: ^5.3.0
   
-  # ============== STATE MANAGEMENT ==============
+  # CONFIGURATION
+  flutter_dotenv: ^5.1.0
+  
+  # STATE MANAGEMENT
   provider: ^6.0.0
-  get_it: ^7.6.0
+  get_it: ^7.7.0
   
-  # ============== DEVICE FEATURES ==============
-  geolocator: ^9.0.0
-  sensors_plus: ^1.4.0
+  # DEVICE FEATURES
+  geolocator: ^10.1.0  # Version update kiya
+  sensors_plus: ^1.4.1
+  # hardware_buttons removed: package not available on pub.dev in this workspace.
+  # If you have a fork or local plugin, add it as a git or path dependency.
   
-  # ============== LOCAL STORAGE ==============
+  # LOCAL STORAGE
   shared_preferences: ^2.2.0
   flutter_secure_storage: ^9.0.0
   
-  # ============== UI UTILITIES ==============
+  # UI UTILITIES
   intl: ^0.19.0
   google_maps_flutter: ^2.5.0
   
-  # ============== CONNECTIVITY ==============
-  connectivity_plus: ^5.0.0
+  # CONNECTIVITY
+  connectivity_plus: ^5.0.2
   web_socket_channel: ^2.4.0
+  battery_plus: ^6.0.0
+  url_launcher: ^6.3.0
+  audioplayers: ^6.1.0
+  permission_handler: ^11.3.1
+  # Updated to a null-safety compatible version. If you have a specific
+  # tested version, adjust accordingly.
+  noise_meter: ^5.0.2
   
-  # ============== PUSH NOTIFICATIONS ==============
-  # firebase_core: ^2.24.0
-  # firebase_messaging: ^14.7.0
+  # PUSH NOTIFICATIONS
+  firebase_messaging: ^16.2.0
+  firebase_core: ^4.7.0
+  flutter_local_notifications: ^16.3.0
   
-  # ============== PERFORMANCE ==============
+  # PERFORMANCE
   sqflite: ^2.3.0
   path: ^1.8.3
 
@@ -49,10 +62,20 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.14.1
 
 flutter:
   uses-material-design: true
   
   assets:
-    - assets/images/
-    - assets/icons/
+    - .env
+    - assets/HumanSafetyLogo.png
+    # Agar ye folders computer mein nahi hain, toh niche wali lines delete kar do
+    - assets/audio/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/HumanSafetyLogo.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/HumanSafetyLogo.png"

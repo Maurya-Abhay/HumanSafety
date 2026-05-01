@@ -577,10 +577,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     return ClipRRect(
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // Glassmorphism
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: AppBar(
-          titleSpacing: 0,
-          leadingWidth: showBackButton ? 64 : 120,
+          titleSpacing: 12,
+          leadingWidth: showBackButton ? 64 : 80,
           leading: showBackButton
               ? IconButton(
                   icon: const Icon(Icons.arrow_back_ios_new_rounded,
@@ -588,22 +588,56 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   onPressed: onBack ?? () => Navigator.pop(context),
                   splashRadius: 24,
                 )
-              : leadingWidget ?? _buildLogo(context),
-          title: titleWidget ??
-              Text(
-                title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 18,
-                  color: Colors.white,
-                  letterSpacing: 0.5,
-                ),
+              : (leadingWidget ?? _buildLogo(context)),
+          title: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (showBackButton) ...[
+                const SizedBox(width: 4),
+                _buildCompactLogo(context),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: titleWidget ??
+                    Text(
+                      title,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18.5,
+                        color: Colors.white,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
               ),
-          centerTitle: true, // Center title looks much more premium
+            ],
+          ),
+          centerTitle: false,
           elevation: 0,
-          backgroundColor: (backgroundColor ?? AppColors.primary)
-              .withOpacity(0.95), // Slight transparency for blur
+          backgroundColor:
+              (backgroundColor ?? const Color(0xFF0E2A48)).withOpacity(0.98),
           surfaceTintColor: Colors.transparent,
+          flexibleSpace: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  (backgroundColor ?? const Color(0xFF0E2A48))
+                      .withOpacity(0.98),
+                  const Color(0xFF153B63).withOpacity(0.98),
+                  const Color(0xFF1E5A96).withOpacity(0.96),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.18),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+          ),
           actions: actions,
         ),
       ),
@@ -612,41 +646,64 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   Widget _buildLogo(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 16),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.white.withOpacity(0.3),
-                  Colors.white.withOpacity(0.1)
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(12),
-              border:
-                  Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+      padding: const EdgeInsets.only(left: 14),
+      child: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            colors: [
+              Colors.white.withOpacity(0.06),
+              Colors.white.withOpacity(0.02),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.25),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
             ),
-            child: const Center(
-              child: Icon(Icons.shield_rounded, color: Colors.white, size: 20),
+          ],
+          border: Border.all(
+            color: Colors.white.withOpacity(0.12),
+            width: 1.2,
+          ),
+        ),
+        child: Center(
+          child: ClipOval(
+            child: Image.asset(
+              'assets/HumanSafetyLogo.png',
+              width: 40,
+              height: 40,
+              fit: BoxFit.cover,
             ),
           ),
-          const SizedBox(width: 10),
-          const Text(
-            'LOGO',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1,
-            ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactLogo(BuildContext context) {
+    return Container(
+      width: 34,
+      height: 34,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white.withOpacity(0.06),
+        border: Border.all(color: Colors.white.withOpacity(0.10)),
+      ),
+      child: Center(
+        child: ClipOval(
+          child: Image.asset(
+            'assets/HumanSafetyLogo.png',
+            width: 26,
+            height: 26,
+            fit: BoxFit.cover,
           ),
-        ],
+        ),
       ),
     );
   }

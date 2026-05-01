@@ -6,7 +6,8 @@ import '../../shared/models.dart';
 import '../../core/routes.dart';
 import '../../core/theme.dart';
 import '../../core/page_transitions.dart';
-import './sos.dart';
+import '../../core/constants.dart';
+import './sos.dart' show SOSScreen;
 import './contacts.dart';
 import './profile.dart';
 import './notifications.dart';
@@ -31,7 +32,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
       extendBody: true,
       // --- TERA ORIGINAL HEADER RESTORED ---
       appBar: CustomAppBar(
-        title: 'HumanSafety',
+        title: AppConstants.appName,
         showBackButton: false,
         actions: [
           IconButton(
@@ -175,7 +176,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
             ),
           ),
           ElevatedButton(
-            onPressed: () {},
+            onPressed: () => Navigator.pushNamed(context, AppRoutes.sos),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white, foregroundColor: Colors.red,
               shape: const CircleBorder(), padding: const EdgeInsets.all(15),

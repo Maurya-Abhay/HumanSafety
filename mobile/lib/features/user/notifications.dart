@@ -5,6 +5,7 @@ import '../../core/routes.dart';
 import '../../core/theme.dart';
 import '../../core/storage_service.dart';
 import '../../core/constants.dart';
+import '../../core/portal_sound_service.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -328,6 +329,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ];
         isLoading = false;
       });
+      await PortalSoundService().playNotification();
     } catch (e) {
       setState(() {
         error = e.toString();
@@ -338,6 +340,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Future<void> _deleteNotification(String id) async {
     setState(() => notifications.removeWhere((n) => n.id == id));
+    await PortalSoundService().playAlert();
     _showSnackBar("Notification removed");
   }
 
@@ -346,6 +349,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (index != -1 && !notifications[index].read) {
       setState(() =>
           notifications[index] = notifications[index].copyWith(read: true));
+      await PortalSoundService().playNotification();
     }
   }
 

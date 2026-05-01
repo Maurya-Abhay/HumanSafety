@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Human Safety</string>
+	<string>HumanSafety</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,15 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>human_safety</string>
+	<string>HumanSafety</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>HumanSafety uses microphone input to detect possible crash sounds during emergency monitoring.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>HumanSafety needs your location to send accurate emergency alerts.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>HumanSafety uses background location to keep emergency tracking active when needed.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>HumanSafety uses your location for emergency routing and responder dispatch.</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

@@ -21,7 +21,20 @@ const userSchema = new mongoose.Schema(
 
     password: { 
       type: String,
-      required: true   // 👈 IMPORTANT
+      required: false,  // Optional for OTP-based login
+      default: null,
+      minlength: [8, 'Password must be at least 8 characters'],
+      validate: {
+        validator: function(v) {
+          // If password exists, it should be at least 8 characters
+          if (v && typeof v === 'string') {
+            return v.length >= 8;
+          }
+          // If no password, it's OK (OTP users)
+          return true;
+        },
+        message: 'Password must be at least 8 characters if provided'
+      }
     },
 
     bloodType: { type: String, default: '' },

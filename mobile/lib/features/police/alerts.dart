@@ -6,6 +6,7 @@ import '../../core/api_service.dart';
 import '../../core/storage_service.dart';
 import '../../core/constants.dart';
 import '../../core/routes.dart';
+import '../../core/portal_sound_service.dart';
 
 // --- ALERTS SCREEN (MODERNIZED) ---
 class AlertsScreen extends StatefulWidget {
@@ -38,6 +39,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
             _cases = cases;
             _error = null;
           });
+          if (cases.isNotEmpty) {
+            await PortalSoundService().playSiren();
+          }
         }
       }
     } catch (e) {
@@ -50,6 +54,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
   Future<void> _acceptCase(String caseId) async {
     try {
       await ApiService.acceptEmergency(_token, caseId);
+      await PortalSoundService().playAlert();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

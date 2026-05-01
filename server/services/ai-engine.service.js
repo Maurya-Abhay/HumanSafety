@@ -1,11 +1,94 @@
 const axios = require('axios');
+const logger = require('../config/logger');
 
 const AI_ENGINE_URL = process.env.AI_ENGINE_URL || 'http://localhost:8000';
-const AI_TIMEOUT = 5000; // 5 seconds timeout
+const AI_TIMEOUT = parseInt(process.env.AI_TIMEOUT) || 30000; // 30 seconds (increased from 5s)
+const MAX_RETRIES = parseInt(process.env.AI_MAX_RETRIES) || 3;
+const INITIAL_BACKOFF = 100; // milliseconds
 
 class AIEngineClient {
   /**
-   * Analyze accident data using AI engine
+   * Retry logic with exponential backoff
+   */
+  static async _requestWithRetry(method, endpoint, data = null, retries = 0) {
+    try {
+      const config = {
+        timeout: AI_TIMEOUT,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Request-ID': `REQ-${Date.now()}-${Math.random().toString(36).slice(2)}`
+        }
+      };
+
+      let response;
+      if (method === 'POST') {
+        response = await axios.post(`${AI_ENGINE_URL}${endpoint}`, data, config);
+      } else if (method === 'GET') {
+        response = await axios.get(`${AI_ENGINE_URL}${endpoint}`, config);
+      }
+
+      return response.data;
+    } catch (error) {
+      const isNetworkError = error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT';
+      const isServerError = error.response?.status >= 500;
+
+      if ((isNetworkError || isServerError) && retries < MAX_RETRIES) {
+        const backoffMs = INITIAL_BACKOFF * Math.pow(2, retries);
+        logger.warn(`AI Engine request failed, retrying in ${backoffMs}ms (${retries + 1}/${MAX_RETRIES})`, {
+          endpoint,
+          error: error.message,
+          retries: retries + 1
+        });
+
+        await new Promise(resolve => setTimeout(resolve, backoffMs));
+        return this._requestWithRetry(method, endpoint, data, retries + 1);
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Fallback risk scoring when AI engine is unreachable
+   */
+  static _fallbackRiskAssessment(sensorData) {
+    let riskScore = 0;
+
+    // Speed-based risk
+    const speed = sensorData.speed || 0;
+    if (speed > 60) riskScore += 30;
+    else if (speed > 40) riskScore += 20;
+    else if (speed > 20) riskScore += 10;
+
+    // Acceleration-based risk
+    const accel = sensorData.accelerometerData || { x: 0, y: 0, z: 0 };
+    const magnitude = Math.sqrt(accel.x ** 2 + accel.y ** 2 + accel.z ** 2);
+    if (magnitude > 20) riskScore += 50; // High impact
+    else if (magnitude > 15) riskScore += 30; // Medium impact
+    else if (magnitude > 10) riskScore += 15; // Low impact
+
+    // Audio-based risk (crash sound)
+    const audioLevel = sensorData.audioLevel || 0;
+    if (audioLevel > 80) riskScore += 30;
+    else if (audioLevel > 70) riskScore += 15;
+
+    // Location-based risk (highway/city roads)
+    const locationRisk = sensorData.locationRisk || 0;
+    riskScore += locationRisk;
+
+    // Cap at 100
+    riskScore = Math.min(riskScore, 100);
+
+    return {
+      riskScore,
+      riskLevel: riskScore > 70 ? 'critical' : riskScore > 50 ? 'high' : riskScore > 30 ? 'medium' : 'low',
+      confidence: 0.65, // Lower confidence for fallback
+      triggerAlert: riskScore > 50 // Trigger if medium-high risk
+    };
+  }
+
+  /**
+   * Analyze accident data using AI engine with retry logic
    */
   static async analyzeAccident(sensorData) {
     try {
@@ -29,28 +112,31 @@ class AIEngineClient {
         }
       };
 
-      const response = await axios.post(
-        `${AI_ENGINE_URL}/analyze`,
-        payload,
-        { timeout: AI_TIMEOUT }
-      );
+      logger.debug('Analyzing accident data via AI engine', { endpoint: '/analyze' });
+      const response = await this._requestWithRetry('POST', '/analyze', payload);
 
       return {
         success: true,
-        data: response.data,
-        riskScore: response.data.analysis?.final_assessment?.final_risk_score || 0,
-        riskLevel: response.data.analysis?.final_assessment?.risk_level || 'low',
-        triggerAlert: response.data.analysis?.final_assessment?.trigger_alert || false,
-        confidence: response.data.analysis?.confidence || 0
+        data: response,
+        riskScore: response.analysis?.final_assessment?.final_risk_score || 0,
+        riskLevel: response.analysis?.final_assessment?.risk_level || 'low',
+        triggerAlert: response.analysis?.final_assessment?.trigger_alert || false,
+        confidence: response.analysis?.confidence || 0,
+        source: 'ai-engine'
       };
     } catch (error) {
-      console.error('❌ AI Engine Error (analyze):', error.message);
+      logger.error('AI Engine error in analyzeAccident, using fallback', {
+        error: error.message,
+        endpoint: '/analyze'
+      });
+
+      // Use fallback risk assessment
+      const fallback = this._fallbackRiskAssessment(sensorData);
       return {
         success: false,
         error: error.message,
-        riskScore: 0,
-        riskLevel: 'unknown',
-        triggerAlert: false
+        ...fallback,
+        source: 'fallback'
       };
     }
   }
@@ -75,25 +161,28 @@ class AIEngineClient {
         audio: sensorData.audioLevel ? { level: sensorData.audioLevel } : null
       };
 
-      const response = await axios.post(
-        `${AI_ENGINE_URL}/predict-emergency`,
-        payload,
-        { timeout: AI_TIMEOUT }
-      );
+      const response = await this._requestWithRetry('POST', '/predict-emergency', payload);
 
       return {
         success: true,
-        data: response.data,
-        emergencyProbability: response.data.emergency_probability || 0,
-        shouldTriggerAlert: response.data.should_trigger_alert || false
+        data: response,
+        emergencyProbability: response.emergency_probability || 0,
+        shouldTriggerAlert: response.should_trigger_alert || false,
+        source: 'ai-engine'
       };
     } catch (error) {
-      console.error('❌ AI Engine Error (predict):', error.message);
+      logger.error('AI Engine error in predictEmergency, using fallback', {
+        error: error.message,
+        endpoint: '/predict-emergency'
+      });
+
+      const fallback = this._fallbackRiskAssessment(sensorData);
       return {
         success: false,
         error: error.message,
-        emergencyProbability: 0,
-        shouldTriggerAlert: false
+        emergencyProbability: fallback.riskScore / 100,
+        shouldTriggerAlert: fallback.triggerAlert,
+        source: 'fallback'
       };
     }
   }
@@ -118,26 +207,28 @@ class AIEngineClient {
         risk_score: riskScore
       };
 
-      const response = await axios.post(
-        `${AI_ENGINE_URL}/validate-alert`,
-        payload,
-        { timeout: AI_TIMEOUT }
-      );
+      const response = await this._requestWithRetry('POST', '/validate-alert', payload);
 
       return {
         success: true,
-        data: response.data,
-        isValid: response.data.is_valid_event || false,
-        confidence: response.data.confidence || 0,
-        filterReasons: response.data.filter_failures || []
+        data: response,
+        isValid: response.is_valid_event || false,
+        confidence: response.confidence || 0,
+        filterReasons: response.filter_failures || [],
+        source: 'ai-engine'
       };
     } catch (error) {
-      console.error('❌ AI Engine Error (validate):', error.message);
+      logger.error('AI Engine error in validateAlert, using fallback', {
+        error: error.message,
+        endpoint: '/validate-alert'
+      });
+
       return {
         success: false,
         error: error.message,
-        isValid: false,
-        confidence: 0
+        isValid: riskScore > 50, // Conservative fallback
+        confidence: 0.5,
+        source: 'fallback'
       };
     }
   }
@@ -161,25 +252,33 @@ class AIEngineClient {
         gyro: { x: 0, y: 0, z: 0 }
       };
 
-      const response = await axios.post(
-        `${AI_ENGINE_URL}/get-risk-score`,
-        payload,
-        { timeout: AI_TIMEOUT }
-      );
+      const response = await this._requestWithRetry('POST', '/get-risk-score', payload);
 
       return {
         success: true,
-        data: response.data,
-        riskScore: response.data.risk_score || 0,
-        riskLevel: response.data.risk_level || 'low'
+        data: response,
+        riskScore: response.risk_score || 0,
+        riskLevel: response.risk_level || 'low',
+        source: 'ai-engine'
       };
     } catch (error) {
-      console.error('❌ AI Engine Error (risk):', error.message);
+      logger.error('AI Engine error in getRiskScore, using fallback', {
+        error: error.message,
+        endpoint: '/get-risk-score'
+      });
+
+      // Simple fallback
+      let riskScore = 0;
+      if (speed > 80) riskScore = 60;
+      else if (speed > 60) riskScore = 40;
+      else if (speed > 40) riskScore = 20;
+
       return {
         success: false,
         error: error.message,
-        riskScore: 0,
-        riskLevel: 'unknown'
+        riskScore,
+        riskLevel: riskScore > 50 ? 'high' : riskScore > 30 ? 'medium' : 'low',
+        source: 'fallback'
       };
     }
   }
@@ -204,23 +303,25 @@ class AIEngineClient {
         audio: sensorData.audioLevel ? { level: sensorData.audioLevel } : null
       };
 
-      const response = await axios.post(
-        `${AI_ENGINE_URL}/stream-data`,
-        payload,
-        { timeout: AI_TIMEOUT }
-      );
+      const response = await this._requestWithRetry('POST', '/stream-data', payload);
 
       return {
         success: true,
-        data: response.data,
-        alert: response.data.alert || false
+        data: response,
+        alert: response.alert || false,
+        source: 'ai-engine'
       };
     } catch (error) {
-      console.error('❌ AI Engine Error (stream):', error.message);
+      logger.error('AI Engine error in streamData', {
+        error: error.message,
+        endpoint: '/stream-data'
+      });
+
       return {
         success: false,
         error: error.message,
-        alert: false
+        alert: false,
+        source: 'fallback'
       };
     }
   }
@@ -230,21 +331,28 @@ class AIEngineClient {
    */
   static async checkHealth() {
     try {
-      const response = await axios.get(
-        `${AI_ENGINE_URL}/health`,
-        { timeout: AI_TIMEOUT }
-      );
+      const response = await this._requestWithRetry('GET', '/health');
+
+      logger.info('AI Engine health check successful', {
+        status: response.status || 'unknown'
+      });
 
       return {
         success: true,
-        status: response.data.status || 'unknown'
+        status: response.status || 'unknown',
+        timestamp: Date.now()
       };
     } catch (error) {
-      console.error('❌ AI Engine Health Check Failed:', error.message);
+      logger.error('AI Engine health check failed', {
+        error: error.message,
+        url: AI_ENGINE_URL
+      });
+
       return {
         success: false,
         status: 'offline',
-        error: error.message
+        error: error.message,
+        timestamp: Date.now()
       };
     }
   }

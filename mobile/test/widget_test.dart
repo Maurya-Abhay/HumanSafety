@@ -8,7 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:human_safety/app.dart';
+import 'package:HumanSafety/app.dart';
 
 void main() {
   testWidgets('HumanSafety app smoke test', (WidgetTester tester) async {

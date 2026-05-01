@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
+import '../../core/network_client.dart';
 import 'dart:convert';
 import 'dart:ui';
 import '../../shared/widgets.dart';
@@ -33,18 +34,15 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       setState(() => _isLoading = true);
       final token = await StorageService.getString(AppConstants.tokenKey);
 
-      final response = await http.get(
-        Uri.parse('${ApiService.baseUrl}/api/v1/cases/pending'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
+      final dio = NetworkClient().client;
+      final resp = await dio.get('/api/v1/cases/pending', options: Options(headers: {
+        'Authorization': 'Bearer $token',
+      }));
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+      if (resp.statusCode == 200) {
+        final data = resp.data is String ? jsonDecode(resp.data) : resp.data;
         setState(() {
-          _reports = data['cases'] ?? data ?? [];
+          _reports = (data as Map<String, dynamic>)['cases'] ?? data ?? [];
           _isLoading = false;
         });
       } else {

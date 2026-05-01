@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
+import '../core/network_client.dart';
 import 'dart:convert';
 import '../core/api_service.dart';
 import '../core/storage_service.dart';
@@ -663,19 +664,18 @@ class StatsProvider extends ChangeNotifier {
         return;
       }
 
-      final statsResponse = await http.get(
-        Uri.parse('${ApiService.baseUrl}/api/v1/admin/dashboard'),
-        headers: {
-          'Authorization': 'Bearer $_token',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (statsResponse.statusCode == 200) {
-        final data = jsonDecode(statsResponse.body);
-        _stats = data['stats'] ?? {};
-      } else {
-        _error = 'Failed to fetch stats: ${statsResponse.statusCode}';
+      try {
+        final dio = NetworkClient().client;
+        final resp = await dio.get('/api/v1/admin/dashboard',
+            options: Options(headers: _token != null ? {'Authorization': 'Bearer $_token'} : null));
+        if (resp.statusCode == 200) {
+          final data = resp.data is String ? jsonDecode(resp.data) : resp.data;
+          _stats = (data as Map<String, dynamic>)['stats'] ?? {};
+        } else {
+          _error = 'Failed to fetch stats: ${resp.statusCode}';
+        }
+      } catch (e) {
+        _error = 'Failed to fetch stats: $e';
       }
     } catch (e) {
       _error = e.toString();

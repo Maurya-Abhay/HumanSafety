@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../shared/widgets.dart';
 import '../../core/routes.dart';
 import '../../core/theme.dart';
+import '../../core/portal_sound_service.dart';
 
 class AdminNotificationsScreen extends StatefulWidget {
   const AdminNotificationsScreen({super.key});
@@ -15,6 +16,12 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
   // Mock data for filters
   String _selectedFilter = 'All';
   final List<String> _filters = ['All', 'Unread', 'System', 'Applications'];
+
+  @override
+  void initState() {
+    super.initState();
+    PortalSoundService().playNotification();
+  }
 
   final List<_AdminNotificationItem> _notifications = const [
     _AdminNotificationItem(

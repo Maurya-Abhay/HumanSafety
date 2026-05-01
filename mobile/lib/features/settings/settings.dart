@@ -7,6 +7,7 @@ import '../../core/storage_service.dart';
 import '../../core/sensor_service.dart';
 import '../../core/background_service.dart';
 import '../../core/theme.dart';
+import '../../core/button_listener_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -353,6 +354,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
           onChanged: (val) {
             setState(() => enableEmergencySharing = val);
             _saveSetting('enable_emergency_sharing', val);
+          },
+        ),
+      ),
+      ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: _buildIconBg(Icons.volume_up_rounded, Colors.green),
+        title: const Text('Hardware Volume Button SOS', style: TextStyle(fontWeight: FontWeight.w500)),
+        subtitle: const Text('Triple-press volume button to trigger SOS', style: TextStyle(fontSize: 12)),
+        trailing: FutureBuilder<bool>(
+          future: ButtonListenerService().isEnabled(),
+          builder: (context, snapshot) {
+            final enabled = snapshot.data ?? true;
+            return Switch.adaptive(
+              activeColor: Colors.green,
+              value: enabled,
+              onChanged: (val) async {
+                setState(() {});
+                await ButtonListenerService().setEnabled(val);
+                _saveSetting('enable_hardware_sos', val);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(val ? 'Hardware SOS Enabled' : 'Hardware SOS Disabled')),
+                );
+              },
+            );
           },
         ),
       ),

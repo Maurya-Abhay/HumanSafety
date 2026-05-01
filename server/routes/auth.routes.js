@@ -4,7 +4,8 @@ const {
   verifyOTPAndLogin, 
   signup, 
   logout,
-  loginWithPassword   // 👈 ADD
+  loginWithPassword,   // 👈 ADD
+  refreshToken         // 👈 ADD
 } = require('../controllers/auth.controller');
 
 const { validateSendOTP, validateVerifyOTP } = require('../middleware/validation.middleware');
@@ -24,6 +25,10 @@ router.post('/signup', signup);
 // ================== OTP (OPTIONAL - FUTURE USE) ==================
 router.post('/send-otp', validateSendOTP, sendOTP);
 router.post('/verify-otp', validateVerifyOTP, verifyOTPAndLogin);
+
+
+// ================== TOKEN REFRESH ==================
+router.post('/refresh-token', refreshToken);
 
 
 // ================== LOGOUT ==================

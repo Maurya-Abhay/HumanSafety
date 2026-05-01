@@ -2,6 +2,7 @@ const Alert = require('../models/alert.model');
 const Contact = require('../models/contact.model');
 const User = require('../models/user.model');
 const Hospital = require('../models/hospital.model');
+const logger = require('../config/logger');
 const { validateLocation, formatLocation } = require('../services/location.service');
 const { sendSMS } = require('../services/sms.service');
 const { sendNotification } = require('../services/notification.service');
@@ -113,26 +114,55 @@ const triggerPanic = async (req, res) => {
 
     let nearbyHospitals = [];
     try {
+      // Use GeoJSON $near query with 2dsphere index
+      // Note: coordinates are [longitude, latitude] in GeoJSON format
+      const maxDistanceMeters = 10000; // 10km radius
+      
       nearbyHospitals = await Hospital.find({
         location: {
           $near: {
             $geometry: {
               type: 'Point',
-              coordinates: [longitude, latitude]
+              coordinates: [longitude, latitude] // [lon, lat] order for GeoJSON
             },
-            $maxDistance: 10000 // 10km radius
+            $maxDistance: maxDistanceMeters // in meters
           }
-        }
+        },
+        isActive: true
       }).limit(5);
+
+      logger.info('Found nearby hospitals', {
+        userId,
+        latitude,
+        longitude,
+        hospitalsFound: nearbyHospitals.length
+      });
 
       // Auto-call nearest hospital if critical
       if (nearbyHospitals.length > 0 && riskLevel === 'critical') {
         const nearestHospital = nearbyHospitals[0];
         const hospitalMessage = `Emergency Alert: Patient ${user.name} (${user.phone}) at location ${latitude},${longitude}. Risk level: ${riskLevel}. ETA: Unknown`;
-        await sendSMS(nearestHospital.phone, hospitalMessage);
+        
+        try {
+          await sendSMS(nearestHospital.phone, hospitalMessage);
+          logger.info('Hospital notification sent', {
+            hospitalId: nearestHospital._id,
+            hospitalPhone: nearestHospital.phone
+          });
+        } catch (smsError) {
+          logger.error('Failed to send SMS to hospital', {
+            hospitalId: nearestHospital._id,
+            error: smsError.message
+          });
+        }
       }
     } catch (err) {
-      console.warn('⚠️ Hospital notification failed:', err.message);
+      logger.error('Hospital geospatial query failed', {
+        error: err.message,
+        userId,
+        coordinates: [longitude, latitude]
+      });
+      // Continue without hospital notification if query fails
     }
 
     // ============== RESPONSE ==============
@@ -163,7 +193,13 @@ const triggerPanic = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Panic Trigger Error:', error);
+    logger.error('Panic trigger error', {
+      userId,
+      latitude,
+      longitude,
+      error: error.message,
+      stack: error.stack
+    });
     res.status(500).json({
       success: false,
       message: 'Error triggering panic alert',

@@ -8,6 +8,7 @@ import '../../core/routes.dart';
 import '../../core/theme.dart';
 import '../../core/storage_service.dart';
 import '../../core/constants.dart';
+import '../../core/portal_sound_service.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -30,6 +31,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final token = await StorageService.getString(AppConstants.tokenKey);
     if (token != null && mounted) {
       context.read<StatsProvider>().fetchStats(token);
+      await PortalSoundService().playNotification();
     }
   }
 

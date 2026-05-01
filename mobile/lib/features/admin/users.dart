@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
+import '../../core/network_client.dart';
 import 'dart:convert';
 import 'dart:ui';
 
@@ -35,18 +36,15 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       setState(() => _isLoading = true);
       final token = await StorageService.getString(AppConstants.tokenKey);
 
-      final response = await http.get(
-        Uri.parse('${ApiService.baseUrl}/api/v1/admin/users'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
+      final dio = NetworkClient().client;
+      final resp = await dio.get('/api/v1/admin/users', options: Options(headers: {
+        'Authorization': 'Bearer $token',
+      }));
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+      if (resp.statusCode == 200) {
+        final data = resp.data is String ? jsonDecode(resp.data) : resp.data;
         setState(() {
-          _users = data['users'] ?? [];
+          _users = (data as Map<String, dynamic>)['users'] ?? [];
           _isLoading = false;
         });
       } else {

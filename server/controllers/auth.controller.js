@@ -221,6 +221,83 @@ const logout = async (req, res) => {
 };
 
 
+// ================== REFRESH TOKEN ==================
+
+/**
+ * Refresh JWT token before expiry
+ * Usage: Call this when token is about to expire (< 5 minutes left)
+ */
+const refreshToken = async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token required'
+      });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      // Token expired - try to decode without verification to get user info
+      try {
+        decoded = jwt.decode(token);
+        if (!decoded) {
+          return res.status(401).json({
+            success: false,
+            message: 'Invalid token'
+          });
+        }
+      } catch (e) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid token format'
+        });
+      }
+    }
+
+    const user = await User.findById(decoded.userId);
+
+    if (!user || !user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not found or inactive'
+      });
+    }
+
+    // Generate new token
+    const newToken = jwt.sign(
+      { userId: user._id, phone: user.phone },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRE || '7d' }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Token refreshed successfully',
+      token: newToken,
+      expiresIn: process.env.JWT_EXPIRE || '7d',
+      user: {
+        id: user._id,
+        phone: user.phone,
+        name: user.name,
+        role: user.role,
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Token refresh failed',
+      error: error.message,
+    });
+  }
+};
+
+
 // ================== EXPORT ==================
 
 module.exports = {
@@ -228,5 +305,6 @@ module.exports = {
   verifyOTPAndLogin,
   loginWithPassword, // 👈 MAIN LOGIN
   signup,
+  refreshToken,      // 👈 NEW
   logout,
 };

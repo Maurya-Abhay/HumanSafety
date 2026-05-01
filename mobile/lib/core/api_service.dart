@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:async';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
+import 'network_client.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as status;
 import 'package:flutter/foundation.dart';
@@ -8,7 +9,7 @@ import 'constants.dart';
 import 'storage_service.dart';
 
 class ApiService {
-  static const baseUrl = AppConstants.baseUrl;
+  static final baseUrl = AppConstants.baseUrl;
   static const timeout = Duration(seconds: 30);
 
   // WebSocket
@@ -27,27 +28,84 @@ class ApiService {
     };
   }
 
+  /// Returns a valid token; refreshes if close to expiry.
+  static Future<String?> getValidToken() async {
+    try {
+      final token = await StorageService.getString(AppConstants.tokenKey);
+      if (token == null) return null;
+
+      // Decode token expiry (simple parse, not verifying signature)
+      final parts = token.split('.');
+      if (parts.length != 3) return token;
+
+      final payload = jsonDecode(utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))));
+      final exp = payload['exp'];
+      if (exp == null) return token;
+
+      final expiry = DateTime.fromMillisecondsSinceEpoch(exp * 1000);
+      final now = DateTime.now().toUtc();
+      final diff = expiry.difference(now);
+
+      // If token has less than 5 minutes remaining, attempt refresh
+      if (diff.inSeconds < 300) {
+        try {
+          final dio = NetworkClient().client;
+          final resp = await dio.post('/api/v1/auth/refresh-token', data: {'token': token});
+          if (resp.statusCode == 200) {
+            final data = resp.data is String ? jsonDecode(resp.data) : resp.data;
+            final newToken = (data as Map<String, dynamic>)['token'] as String?;
+            if (newToken != null) {
+              await StorageService.saveString(AppConstants.tokenKey, newToken);
+              return newToken;
+            }
+          }
+        } catch (e) {
+          debugPrint('Token refresh failed: $e');
+        }
+      }
+
+      return token;
+    } catch (e) {
+      debugPrint('getValidToken error: $e');
+      return await StorageService.getString(AppConstants.tokenKey);
+    }
+  }
+
   static Future<T> _handleResponse<T>(
-    http.Response response,
+    dynamic response,
     T Function(Map<String, dynamic>) fromJson,
   ) async {
     try {
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
+      int? statusCode;
+      dynamic body;
+      if (response == null) throw ApiException('No response', 0);
+
+      // Dio Response
+      if (response is Response) {
+        statusCode = response.statusCode;
+        body = response.data;
+      } else {
+        // Fallback: assume Map/String
+        statusCode = response['statusCode'] as int?;
+        body = response['body'] ?? response;
+      }
+
+      if (statusCode != null && statusCode >= 200 && statusCode < 300) {
+        final data = body is String ? jsonDecode(body) as Map<String, dynamic> : body as Map<String, dynamic>;
         return fromJson(data);
-      } else if (response.statusCode == 401) {
+      } else if (statusCode == 401) {
         throw ApiException('Unauthorized. Please login again.', 401);
-      } else if (response.statusCode == 403) {
+      } else if (statusCode == 403) {
         throw ApiException('Access denied.', 403);
-      } else if (response.statusCode == 404) {
+      } else if (statusCode == 404) {
         throw ApiException('Resource not found.', 404);
-      } else if (response.statusCode == 500) {
+      } else if (statusCode == 500) {
         throw ApiException('Server error. Please try again later.', 500);
       } else {
-        final data = jsonDecode(response.body);
+        final parsed = body is String ? jsonDecode(body) : body;
         throw ApiException(
-          data['message'] ?? 'Request failed',
-          response.statusCode,
+          parsed is Map ? (parsed['message'] ?? 'Request failed') : 'Request failed',
+          statusCode ?? 0,
         );
       }
     } catch (e) {
@@ -61,18 +119,9 @@ class ApiService {
   static Future<AuthResponse> login(String phone, String password) async {
     try {
       print('🌐 Making login request to: $baseUrl/api/v1/auth/login');
-      final response = await http
-          .post(
-            Uri.parse('$baseUrl/api/v1/auth/login'),
-            headers: _getHeaders(),
-            body: jsonEncode({'phone': phone, 'password': password}),
-          )
-          .timeout(timeout);
-
-      print('📡 Login response status: ${response.statusCode}');
-      print('📡 Login response body: ${response.body}');
-
-      return _handleResponse(response, (json) => AuthResponse.fromJson(json));
+      final dio = NetworkClient().client;
+      final resp = await dio.post('/api/v1/auth/login', data: {'phone': phone, 'password': password});
+      return _handleResponse(resp, (json) => AuthResponse.fromJson(json));
     } catch (e) {
       print('❌ Login API error: $e');
       throw ApiException('Login failed: ${e.toString()}', 0);
@@ -82,23 +131,14 @@ class ApiService {
   static Future<AuthResponse> signup(String phone, String password, String fullName, String email) async {
     try {
       print('🌐 Making signup request to: $baseUrl/api/v1/auth/signup');
-      final response = await http
-          .post(
-            Uri.parse('$baseUrl/api/v1/auth/signup'),
-            headers: _getHeaders(),
-            body: jsonEncode({
-              'phone': phone,
-              'password': password,
-              'fullName': fullName,
-              'email': email,
-            }),
-          )
-          .timeout(timeout);
-
-      print('📡 Signup response status: ${response.statusCode}');
-      print('📡 Signup response body: ${response.body}');
-
-      return _handleResponse(response, (json) => AuthResponse.fromJson(json));
+      final dio = NetworkClient().client;
+      final resp = await dio.post('/api/v1/auth/signup', data: {
+        'phone': phone,
+        'password': password,
+        'fullName': fullName,
+        'email': email,
+      });
+      return _handleResponse(resp, (json) => AuthResponse.fromJson(json));
     } catch (e) {
       print('❌ Signup API error: $e');
       throw ApiException('Signup failed: ${e.toString()}', 0);
@@ -107,15 +147,9 @@ class ApiService {
 
   static Future<AuthResponse> sendOtp(String phone) async {
     try {
-      final response = await http
-          .post(
-            Uri.parse('$baseUrl/api/v1/auth/send-otp'),
-            headers: _getHeaders(),
-            body: jsonEncode({'phone': phone}),
-          )
-          .timeout(timeout);
-
-      return _handleResponse(response, (json) => AuthResponse.fromJson(json));
+      final dio = NetworkClient().client;
+      final resp = await dio.post('/api/v1/auth/send-otp', data: {'phone': phone});
+      return _handleResponse(resp, (json) => AuthResponse.fromJson(json));
     } catch (e) {
       throw ApiException('OTP send failed: ${e.toString()}', 0);
     }
@@ -123,15 +157,9 @@ class ApiService {
 
   static Future<AuthResponse> verifyOtp(String phone, String otp) async {
     try {
-      final response = await http
-          .post(
-            Uri.parse('$baseUrl/api/v1/auth/verify-otp'),
-            headers: _getHeaders(),
-            body: jsonEncode({'phone': phone, 'otp': otp}),
-          )
-          .timeout(timeout);
-
-      return _handleResponse(response, (json) => AuthResponse.fromJson(json));
+      final dio = NetworkClient().client;
+      final resp = await dio.post('/api/v1/auth/verify-otp', data: {'phone': phone, 'otp': otp});
+      return _handleResponse(resp, (json) => AuthResponse.fromJson(json));
     } catch (e) {
       throw ApiException('OTP verification failed: ${e.toString()}', 0);
     }
@@ -139,12 +167,8 @@ class ApiService {
 
   static Future<void> logout(String token) async {
     try {
-      await http
-          .post(
-            Uri.parse('$baseUrl/api/v1/auth/logout'),
-            headers: _getHeaders(token: token),
-          )
-          .timeout(timeout);
+      final dio = NetworkClient().client;
+      await dio.post('/api/v1/auth/logout');
     } catch (e) {
       throw ApiException('Logout failed: ${e.toString()}', 0);
     }
@@ -154,14 +178,9 @@ class ApiService {
 
   static Future<UserProfile> getUserProfile(String token) async {
     try {
-      final response = await http
-          .get(
-            Uri.parse('$baseUrl/api/v1/user/profile'),
-            headers: _getHeaders(token: token),
-          )
-          .timeout(timeout);
-
-      return _handleResponse(response, (json) => UserProfile.fromJson(json));
+      final dio = NetworkClient().client;
+      final resp = await dio.get('/api/v1/user/profile');
+      return _handleResponse(resp, (json) => UserProfile.fromJson(json));
     } catch (e) {
       throw ApiException('Failed to fetch profile: ${e.toString()}', 0);
     }
@@ -172,15 +191,9 @@ class ApiService {
     Map<String, dynamic> data,
   ) async {
     try {
-      final response = await http
-          .put(
-            Uri.parse('$baseUrl/api/v1/user/profile'),
-            headers: _getHeaders(token: token),
-            body: jsonEncode(data),
-          )
-          .timeout(timeout);
-
-      return _handleResponse(response, (json) => UserProfile.fromJson(json));
+      final dio = NetworkClient().client;
+      final resp = await dio.put('/api/v1/user/profile', data: data);
+      return _handleResponse(resp, (json) => UserProfile.fromJson(json));
     } catch (e) {
       throw ApiException('Failed to update profile: ${e.toString()}', 0);
     }
@@ -193,23 +206,38 @@ class ApiService {
     double accuracy,
   ) async {
     try {
-      await http
-          .post(
-            Uri.parse('$baseUrl/api/v1/user/location'),
-            headers: _getHeaders(token: token),
-            body: jsonEncode({
-              'latitude': latitude,
-              'longitude': longitude,
-              'accuracy': accuracy,
-            }),
-          )
-          .timeout(timeout);
+      final dio = NetworkClient().client;
+      await dio.post('/api/v1/user/location', data: {
+        'latitude': latitude,
+        'longitude': longitude,
+        'accuracy': accuracy,
+      });
     } catch (e) {
       throw ApiException('Failed to update location: ${e.toString()}', 0);
     }
   }
 
   // ============ EMERGENCY/CASE ENDPOINTS ============
+
+  /// Analyze sensor data through AI engine to get risk score
+  static Future<Map<String, dynamic>?> analyzeAccident(
+    String token,
+    Map<String, dynamic> sensorData,
+  ) async {
+    try {
+      final dio = NetworkClient().client;
+      final resp = await dio.post('/api/v1/accident/analyze', data: sensorData);
+      if (resp.statusCode == 200) {
+        return resp.data as Map<String, dynamic>;
+      } else if (resp.statusCode == 401) {
+        throw ApiException('Unauthorized', 401);
+      } else {
+        throw ApiException('Failed to analyze accident: ${resp.statusCode}', resp.statusCode ?? 0);
+      }
+    } catch (e) {
+      throw ApiException('Failed to analyze accident: ${e.toString()}', 0);
+    }
+  }
 
   static Future<CaseResponse> createPanicAlert(
     String token, {
@@ -219,39 +247,96 @@ class ApiService {
     Map<String, dynamic>? sensorData,
   }) async {
     try {
-      final response = await http
-          .post(
-            Uri.parse('$baseUrl/api/v1/emergency/panic'),
-            headers: _getHeaders(token: token),
-            body: jsonEncode({
-              'latitude': latitude,
-              'longitude': longitude,
-              'description': description,
-              'sensorData': sensorData,
-            }),
-          )
-          .timeout(timeout);
+      final dio = NetworkClient().client;
+      final resp = await dio.post('/api/v1/emergency/panic', data: {
+        'latitude': latitude,
+        'longitude': longitude,
+        'description': description,
+        'sensorData': sensorData,
+      });
 
-      return _handleResponse(response, (json) => CaseResponse.fromJson(json));
+      if (resp.statusCode != null && resp.statusCode! >= 200 && resp.statusCode! < 300) {
+        final data = resp.data is String ? jsonDecode(resp.data) : resp.data;
+        return CaseResponse.fromJson(data as Map<String, dynamic>);
+      } else if (resp.statusCode == 401) {
+        throw ApiException('Unauthorized', 401);
+      } else {
+        throw ApiException('Failed to create panic alert: ${resp.statusCode}', resp.statusCode ?? 0);
+      }
     } catch (e) {
       throw ApiException('Failed to create panic alert: ${e.toString()}', 0);
     }
   }
 
+  static Future<HelpRequestResponse> requestHelp(
+    String token, {
+    required double latitude,
+    required double longitude,
+    String? description,
+  }) async {
+    try {
+      final dio = NetworkClient().client;
+      final resp = await dio.post('/api/v1/help/request', data: {
+        'latitude': latitude,
+        'longitude': longitude,
+        'description': description ?? 'User needs nearby help',
+      });
+
+      final data = resp.data is String ? jsonDecode(resp.data) : resp.data;
+      return HelpRequestResponse.fromJson(data as Map<String, dynamic>);
+    } catch (e) {
+      throw ApiException('Failed to request help: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<HelpRequestResponse> acceptHelp(
+    String token, {
+    required String helpRequestId,
+  }) async {
+    try {
+      final dio = NetworkClient().client;
+      final resp = await dio.post('/api/v1/help/accept', data: {'helpRequestId': helpRequestId});
+      return _handleResponse(resp, (json) => HelpRequestResponse.fromJson(json));
+    } catch (e) {
+      throw ApiException('Failed to accept help: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<HelpRequestResponse> rejectHelp(
+    String token, {
+    required String helpRequestId,
+  }) async {
+    try {
+      final dio = NetworkClient().client;
+      final resp = await dio.post('/api/v1/help/reject', data: {'helpRequestId': helpRequestId});
+      return _handleResponse(resp, (json) => HelpRequestResponse.fromJson(json));
+    } catch (e) {
+      throw ApiException('Failed to reject help: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<HelpRequestResponse> completeHelp(
+    String token, {
+    required String helpRequestId,
+  }) async {
+    try {
+      final dio = NetworkClient().client;
+      final resp = await dio.post('/api/v1/help/complete', data: {'helpRequestId': helpRequestId});
+      return _handleResponse(resp, (json) => HelpRequestResponse.fromJson(json));
+    } catch (e) {
+      throw ApiException('Failed to complete help: ${e.toString()}', 0);
+    }
+  }
+
   static Future<List<CaseItem>> getUserCases(String token) async {
     try {
-      final response = await http
-          .get(
-            Uri.parse('$baseUrl/api/v1/emergency/cases'),
-            headers: _getHeaders(token: token),
-          )
-          .timeout(timeout);
-
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final List data = jsonDecode(response.body);
-        return data.map((item) => CaseItem.fromJson(item)).toList();
+      final dio = NetworkClient().client;
+      final resp = await dio.get('/api/v1/emergency/cases');
+      if (resp.statusCode != null && resp.statusCode! >= 200 && resp.statusCode! < 300) {
+        final data = resp.data is String ? jsonDecode(resp.data) : resp.data;
+        return (data as List).map((item) => CaseItem.fromJson(item)).toList();
       } else {
-        throw ApiException('Failed to fetch cases', response.statusCode);
+        throw ApiException('Failed to fetch cases', resp.statusCode ?? 0);
       }
     } catch (e) {
       throw ApiException('Failed to fetch cases: ${e.toString()}', 0);
@@ -260,14 +345,10 @@ class ApiService {
 
   static Future<CaseItem> getCaseDetails(String token, String caseId) async {
     try {
-      final response = await http
-          .get(
-            Uri.parse('$baseUrl/api/v1/emergency/cases/$caseId'),
-            headers: _getHeaders(token: token),
-          )
-          .timeout(timeout);
-
-      return _handleResponse(response, (json) => CaseItem.fromJson(json));
+      final dio = NetworkClient().client;
+      final resp = await dio.get('/api/v1/emergency/cases/$caseId');
+      final data = resp.data is String ? jsonDecode(resp.data) : resp.data;
+      return CaseItem.fromJson(data as Map<String, dynamic>);
     } catch (e) {
       throw ApiException('Failed to fetch case details: ${e.toString()}', 0);
     }
@@ -277,18 +358,13 @@ class ApiService {
 
   static Future<List<CaseItem>> getPoliceAlerts(String token) async {
     try {
-      final response = await http
-          .get(
-            Uri.parse('$baseUrl/api/v1/police/alerts'),
-            headers: _getHeaders(token: token),
-          )
-          .timeout(timeout);
-
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final List data = jsonDecode(response.body);
-        return data.map((item) => CaseItem.fromJson(item)).toList();
+      final dio = NetworkClient().client;
+      final resp = await dio.get('/api/v1/police/alerts');
+      if (resp.statusCode != null && resp.statusCode! >= 200 && resp.statusCode! < 300) {
+        final data = resp.data is String ? jsonDecode(resp.data) : resp.data;
+        return (data as List).map((item) => CaseItem.fromJson(item)).toList();
       } else {
-        throw ApiException('Failed to fetch alerts', response.statusCode);
+        throw ApiException('Failed to fetch alerts', resp.statusCode ?? 0);
       }
     } catch (e) {
       throw ApiException('Failed to fetch alerts: ${e.toString()}', 0);
@@ -297,12 +373,8 @@ class ApiService {
 
   static Future<void> acceptCase(String token, String caseId) async {
     try {
-      await http
-          .put(
-            Uri.parse('$baseUrl/api/v1/police/cases/$caseId/accept'),
-            headers: _getHeaders(token: token),
-          )
-          .timeout(timeout);
+      final dio = NetworkClient().client;
+      await dio.put('/api/v1/police/cases/$caseId/accept');
     } catch (e) {
       throw ApiException('Failed to accept case: ${e.toString()}', 0);
     }
@@ -314,13 +386,8 @@ class ApiService {
     String status,
   ) async {
     try {
-      await http
-          .put(
-            Uri.parse('$baseUrl/api/v1/police/cases/$caseId/update'),
-            headers: _getHeaders(token: token),
-            body: jsonEncode({'status': status}),
-          )
-          .timeout(timeout);
+      final dio = NetworkClient().client;
+      await dio.put('/api/v1/police/cases/$caseId/update', data: {'status': status});
     } catch (e) {
       throw ApiException('Failed to update case status: ${e.toString()}', 0);
     }
@@ -330,18 +397,13 @@ class ApiService {
 
   static Future<List<CaseItem>> getHospitalAlerts(String token) async {
     try {
-      final response = await http
-          .get(
-            Uri.parse('$baseUrl/api/v1/hospital/alerts'),
-            headers: _getHeaders(token: token),
-          )
-          .timeout(timeout);
-
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final List data = jsonDecode(response.body);
-        return data.map((item) => CaseItem.fromJson(item)).toList();
+      final dio = NetworkClient().client;
+      final resp = await dio.get('/api/v1/hospital/alerts');
+      if (resp.statusCode != null && resp.statusCode! >= 200 && resp.statusCode! < 300) {
+        final data = resp.data is String ? jsonDecode(resp.data) : resp.data;
+        return (data as List).map((item) => CaseItem.fromJson(item)).toList();
       } else {
-        throw ApiException('Failed to fetch hospital alerts', response.statusCode);
+        throw ApiException('Failed to fetch hospital alerts', resp.statusCode ?? 0);
       }
     } catch (e) {
       throw ApiException('Failed to fetch hospital alerts: ${e.toString()}', 0);
@@ -350,12 +412,8 @@ class ApiService {
 
   static Future<void> acceptEmergency(String token, String caseId) async {
     try {
-      await http
-          .put(
-            Uri.parse('$baseUrl/api/v1/hospital/alerts/$caseId/accept'),
-            headers: _getHeaders(token: token),
-          )
-          .timeout(timeout);
+      final dio = NetworkClient().client;
+      await dio.put('/api/v1/hospital/alerts/$caseId/accept');
     } catch (e) {
       throw ApiException('Failed to accept emergency: ${e.toString()}', 0);
     }
@@ -365,14 +423,9 @@ class ApiService {
 
   static Future<AdminStats> getAdminStats(String token) async {
     try {
-      final response = await http
-          .get(
-            Uri.parse('$baseUrl/api/v1/admin/analytics'),
-            headers: _getHeaders(token: token),
-          )
-          .timeout(timeout);
-
-      return _handleResponse(response, (json) => AdminStats.fromJson(json));
+      final dio = NetworkClient().client;
+      final resp = await dio.get('/api/v1/admin/analytics');
+      return _handleResponse(resp, (json) => AdminStats.fromJson(json));
     } catch (e) {
       throw ApiException('Failed to fetch admin stats: ${e.toString()}', 0);
     }
@@ -380,18 +433,13 @@ class ApiService {
 
   static Future<List<CaseItem>> getAdminCases(String token) async {
     try {
-      final response = await http
-          .get(
-            Uri.parse('$baseUrl/api/v1/admin/cases'),
-            headers: _getHeaders(token: token),
-          )
-          .timeout(timeout);
-
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final List data = jsonDecode(response.body);
-        return data.map((item) => CaseItem.fromJson(item)).toList();
+      final dio = NetworkClient().client;
+      final resp = await dio.get('/api/v1/admin/cases');
+      if (resp.statusCode != null && resp.statusCode! >= 200 && resp.statusCode! < 300) {
+        final data = resp.data is String ? jsonDecode(resp.data) : resp.data;
+        return (data as List).map((item) => CaseItem.fromJson(item)).toList();
       } else {
-        throw ApiException('Failed to fetch cases', response.statusCode);
+        throw ApiException('Failed to fetch cases', resp.statusCode ?? 0);
       }
     } catch (e) {
       throw ApiException('Failed to fetch cases: ${e.toString()}', 0);
@@ -400,18 +448,13 @@ class ApiService {
 
   static Future<List<AdminUser>> getAdminUsers(String token) async {
     try {
-      final response = await http
-          .get(
-            Uri.parse('$baseUrl/api/v1/admin/users'),
-            headers: _getHeaders(token: token),
-          )
-          .timeout(timeout);
-
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final List data = jsonDecode(response.body);
-        return data.map((item) => AdminUser.fromJson(item)).toList();
+      final dio = NetworkClient().client;
+      final resp = await dio.get('/api/v1/admin/users');
+      if (resp.statusCode != null && resp.statusCode! >= 200 && resp.statusCode! < 300) {
+        final data = resp.data is String ? jsonDecode(resp.data) : resp.data;
+        return (data as List).map((item) => AdminUser.fromJson(item)).toList();
       } else {
-        throw ApiException('Failed to fetch users', response.statusCode);
+        throw ApiException('Failed to fetch users', resp.statusCode ?? 0);
       }
     } catch (e) {
       throw ApiException('Failed to fetch users: ${e.toString()}', 0);
@@ -420,12 +463,8 @@ class ApiService {
 
   static Future<void> blockUser(String token, String userId) async {
     try {
-      await http
-          .put(
-            Uri.parse('$baseUrl/api/v1/admin/users/$userId/block'),
-            headers: _getHeaders(token: token),
-          )
-          .timeout(timeout);
+      final dio = NetworkClient().client;
+      await dio.put('/api/v1/admin/users/$userId/block');
     } catch (e) {
       throw ApiException('Failed to block user: ${e.toString()}', 0);
     }
@@ -435,18 +474,13 @@ class ApiService {
 
   static Future<List<Notification>> getNotifications(String token) async {
     try {
-      final response = await http
-          .get(
-            Uri.parse('$baseUrl/api/v1/notifications'),
-            headers: _getHeaders(token: token),
-          )
-          .timeout(timeout);
-
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final List data = jsonDecode(response.body);
-        return data.map((item) => Notification.fromJson(item)).toList();
+      final dio = NetworkClient().client;
+      final resp = await dio.get('/api/v1/notifications');
+      if (resp.statusCode != null && resp.statusCode! >= 200 && resp.statusCode! < 300) {
+        final data = resp.data is String ? jsonDecode(resp.data) : resp.data;
+        return (data as List).map((item) => Notification.fromJson(item)).toList();
       } else {
-        throw ApiException('Failed to fetch notifications', response.statusCode);
+        throw ApiException('Failed to fetch notifications', resp.statusCode ?? 0);
       }
     } catch (e) {
       throw ApiException('Failed to fetch notifications: ${e.toString()}', 0);
@@ -455,12 +489,8 @@ class ApiService {
 
   static Future<void> markNotificationAsRead(String token, String notificationId) async {
     try {
-      await http
-          .put(
-            Uri.parse('$baseUrl/api/v1/notifications/$notificationId/read'),
-            headers: _getHeaders(token: token),
-          )
-          .timeout(timeout);
+      final dio = NetworkClient().client;
+      await dio.put('/api/v1/notifications/$notificationId/read');
     } catch (e) {
       throw ApiException('Failed to mark notification as read: ${e.toString()}', 0);
     }
@@ -468,12 +498,8 @@ class ApiService {
 
   static Future<void> deleteNotification(String token, String notificationId) async {
     try {
-      await http
-          .delete(
-            Uri.parse('$baseUrl/api/v1/notifications/$notificationId'),
-            headers: _getHeaders(token: token),
-          )
-          .timeout(timeout);
+      final dio = NetworkClient().client;
+      await dio.delete('/api/v1/notifications/$notificationId');
     } catch (e) {
       throw ApiException('Failed to delete notification: ${e.toString()}', 0);
     }
@@ -483,15 +509,10 @@ class ApiService {
 
   static Future<List<Contact>> getContacts(String token) async {
     try {
-      final response = await http
-          .get(
-            Uri.parse('$baseUrl/api/v1/contact/list'),
-            headers: _getHeaders(token: token),
-          )
-          .timeout(timeout);
-
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final decoded = jsonDecode(response.body);
+      final dio = NetworkClient().client;
+      final resp = await dio.get('/api/v1/contact/list');
+      if (resp.statusCode != null && resp.statusCode! >= 200 && resp.statusCode! < 300) {
+        final decoded = resp.data is String ? jsonDecode(resp.data) : resp.data;
 
         // Handle multiple possible shapes:
         // 1. Raw list: [ {..}, {..} ]
@@ -515,7 +536,7 @@ class ApiService {
 
         return items.map((item) => Contact.fromJson(item)).toList();
       } else {
-        throw ApiException('Failed to fetch contacts', response.statusCode);
+        throw ApiException('Failed to fetch contacts', resp.statusCode ?? 0);
       }
     } catch (e) {
       throw ApiException('Failed to fetch contacts: ${e.toString()}', 0);
@@ -529,19 +550,14 @@ class ApiService {
     String? relation,
   }) async {
     try {
-      final response = await http
-          .post(
-            Uri.parse('$baseUrl/api/v1/contact/add'),
-            headers: _getHeaders(token: token),
-            body: jsonEncode({
-              'name': name,
-              'phone': phone,
-              'relation': relation ?? 'Friend',
-            }),
-          )
-          .timeout(timeout);
+      final dio = NetworkClient().client;
+      final resp = await dio.post('/api/v1/contact/add', data: {
+        'name': name,
+        'phone': phone,
+        'relation': relation ?? 'Friend',
+      });
 
-      return _handleResponse(response, (json) => Contact.fromJson(json));
+      return _handleResponse(resp, (json) => Contact.fromJson(json));
     } catch (e) {
       throw ApiException('Failed to add contact: ${e.toString()}', 0);
     }
@@ -549,12 +565,8 @@ class ApiService {
 
   static Future<void> deleteContact(String token, String contactId) async {
     try {
-      await http
-          .delete(
-            Uri.parse('$baseUrl/api/v1/contact/remove/$contactId'),
-            headers: _getHeaders(token: token),
-          )
-          .timeout(timeout);
+      final dio = NetworkClient().client;
+      await dio.delete('/api/v1/contact/remove/$contactId');
     } catch (e) {
       throw ApiException('Failed to delete contact: ${e.toString()}', 0);
     }
@@ -567,16 +579,9 @@ class ApiService {
     Map<String, dynamic> data,
   ) async {
     try {
-      final response = await http
-          .post(
-            Uri.parse('$baseUrl/api/v1/user/role-application'),
-            headers: _getHeaders(token: token),
-            body: jsonEncode(data),
-          )
-          .timeout(timeout);
-
-      return _handleResponse(
-          response, (json) => RoleApplicationResponse.fromJson(json));
+      final dio = NetworkClient().client;
+      final resp = await dio.post('/api/v1/user/role-application', data: data);
+      return _handleResponse(resp, (json) => RoleApplicationResponse.fromJson(json));
     } catch (e) {
       throw ApiException('Failed to submit role application: ${e.toString()}', 0);
     }
@@ -584,15 +589,9 @@ class ApiService {
 
   static Future<RoleApplicationStatus> getRoleApplicationStatus(String token) async {
     try {
-      final response = await http
-          .get(
-            Uri.parse('$baseUrl/api/v1/user/role-application'),
-            headers: _getHeaders(token: token),
-          )
-          .timeout(timeout);
-
-      return _handleResponse(
-          response, (json) => RoleApplicationStatus.fromJson(json));
+      final dio = NetworkClient().client;
+      final resp = await dio.get('/api/v1/user/role-application');
+      return _handleResponse(resp, (json) => RoleApplicationStatus.fromJson(json));
     } catch (e) {
       throw ApiException('Failed to fetch role application status: ${e.toString()}', 0);
     }
@@ -766,11 +765,45 @@ class CaseResponse {
   });
 
   factory CaseResponse.fromJson(Map<String, dynamic> json) {
+    final alert = json['alert'] is Map<String, dynamic>
+        ? json['alert'] as Map<String, dynamic>
+        : null;
+    final riskAssessment = alert != null && alert['riskAssessment'] is Map<String, dynamic>
+        ? alert['riskAssessment'] as Map<String, dynamic>
+        : null;
+
     return CaseResponse(
-      caseId: json['caseId'] ?? '',
-      message: json['message'],
-      riskLevel: json['riskLevel'] ?? 'medium',
-      riskScore: json['riskScore'] ?? 50,
+      caseId: json['caseId'] ?? alert?['id'] ?? alert?['_id'] ?? json['alertId'] ?? json['id'] ?? '',
+      message: json['message'] ?? alert?['message'],
+      riskLevel: riskAssessment?['riskLevel'] ?? alert?['riskLevel'] ?? json['riskLevel'] ?? 'medium',
+      riskScore: riskAssessment?['riskScore'] ?? alert?['riskScore'] ?? json['riskScore'] ?? 50,
+    );
+  }
+}
+
+class HelpRequestResponse {
+  final String requestId;
+  final String message;
+  final int nearbyUsersCount;
+  final String status;
+
+  HelpRequestResponse({
+    required this.requestId,
+    required this.message,
+    required this.nearbyUsersCount,
+    required this.status,
+  });
+
+  factory HelpRequestResponse.fromJson(Map<String, dynamic> json) {
+    final request = json['request'] is Map<String, dynamic>
+        ? json['request'] as Map<String, dynamic>
+        : null;
+
+    return HelpRequestResponse(
+      requestId: request?['id'] ?? json['requestId'] ?? json['id'] ?? '',
+      message: json['message'] ?? request?['message'] ?? 'Help request processed',
+      nearbyUsersCount: request?['nearbyUsersCount'] ?? json['nearbyUsersCount'] ?? 0,
+      status: request?['status'] ?? json['status'] ?? 'pending',
     );
   }
 }

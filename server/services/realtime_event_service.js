@@ -411,6 +411,88 @@ class RealtimeEventService extends EventEmitter {
       });
     }, 5000); // Every 5 seconds
   }
+
+  // ============================================================
+  // CHANNEL SUBSCRIPTION MANAGEMENT
+  // ============================================================
+
+  /**
+   * Subscribe user to a channel (case updates, notifications, etc.)
+   */
+  subscribeToChannel(userId, channel) {
+    if (!this.wsClients.has(userId)) {
+      console.warn(`Cannot subscribe ${userId}: not connected`);
+      return;
+    }
+
+    const clients = this.wsClients.get(userId);
+    clients.forEach(client => {
+      if (!client.subscriptions) {
+        client.subscriptions = new Set();
+      }
+      client.subscriptions.add(channel);
+    });
+
+    console.log(`📡 ${userId} subscribed to channel: ${channel}`);
+  }
+
+  /**
+   * Unsubscribe user from a channel
+   */
+  unsubscribeFromChannel(userId, channel) {
+    if (!this.wsClients.has(userId)) return;
+
+    const clients = this.wsClients.get(userId);
+    clients.forEach(client => {
+      if (client.subscriptions) {
+        client.subscriptions.delete(channel);
+      }
+    });
+
+    console.log(`📡 ${userId} unsubscribed from channel: ${channel}`);
+  }
+
+  /**
+   * Broadcast message to subscribers of a specific channel
+   */
+  broadcastToChannel(channel, event) {
+    let count = 0;
+
+    this.wsClients.forEach((clients, userId) => {
+      clients.forEach(client => {
+        if (client.subscriptions && client.subscriptions.has(channel)) {
+          if (client.ws.readyState === 1) {
+            client.ws.send(JSON.stringify(event));
+            count++;
+          }
+        }
+      });
+    });
+
+    console.log(`📡 Broadcasted to ${count} subscribers of channel '${channel}'`);
+  }
+
+  /**
+   * Send notification to user (used by notification service)
+   */
+  sendNotification(userId, title, message, type) {
+    this.sendToClient(userId, {
+      type: 'NOTIFICATION',
+      data: {
+        title,
+        message,
+        notificationType: type,
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+
+  /**
+   * Broadcast generic message to all (used by notification service)
+   */
+  broadcast(event) {
+    this.broadcastAll(event);
+  }
 }
 
 // Singleton instance

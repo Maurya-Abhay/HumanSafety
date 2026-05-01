@@ -5,6 +5,7 @@ import '../../core/theme.dart';
 import '../../core/api_service.dart';
 import '../../core/storage_service.dart';
 import '../../core/constants.dart';
+import '../../core/portal_sound_service.dart';
 
 class RequestsScreen extends StatefulWidget {
   const RequestsScreen({super.key});
@@ -35,6 +36,9 @@ class _RequestsScreenState extends State<RequestsScreen> {
           _requests = requests;
           _error = null;
         });
+        if (requests.isNotEmpty) {
+          await PortalSoundService().playAlert();
+        }
       }
     } catch (e) {
       setState(() => _error = e.toString());
@@ -46,6 +50,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
   Future<void> _acceptRequest(String caseId) async {
     try {
       await ApiService.acceptEmergency(_token, caseId);
+      await PortalSoundService().playNotification();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Emergency accepted')),

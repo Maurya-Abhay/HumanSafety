@@ -5,7 +5,8 @@ import '../../shared/widgets.dart';
 import '../../shared/models.dart';
 import '../../core/api_service.dart';
 import '../../core/theme.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
+import '../../core/network_client.dart';
 import 'dart:convert';
 
 class RoleApplicationScreen extends StatefulWidget {
@@ -76,22 +77,22 @@ class _RoleApplicationScreenState extends State<RoleApplicationScreen> {
         });
       }
 
-      final response = await http.post(
-        Uri.parse('${ApiService.baseUrl}/api/v1/user/role-application'),
-        headers: {
+      try {
+        final dio = NetworkClient().client;
+        final resp = await dio.post('/api/v1/user/role-application', data: body, options: Options(headers: {
           'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(body),
-      );
+        }));
 
-      if (!mounted) return;
-      if (response.statusCode == 200) {
-        _showSuccessDialog();
-      } else {
-        final error = jsonDecode(response.body)['message'] ??
-            'Failed to submit application.';
-        _showErrorSnackBar(error);
+        if (!mounted) return;
+        if (resp.statusCode == 200 || (resp.statusCode != null && resp.statusCode! >= 200 && resp.statusCode! < 300)) {
+          _showSuccessDialog();
+        } else {
+          final data = resp.data is String ? jsonDecode(resp.data) : resp.data;
+          final error = (data as Map<String, dynamic>)['message'] ?? 'Failed to submit application.';
+          _showErrorSnackBar(error);
+        }
+      } catch (e) {
+        _showErrorSnackBar('Connection Error: $e');
       }
     } catch (e) {
       _showErrorSnackBar('Connection Error: $e');

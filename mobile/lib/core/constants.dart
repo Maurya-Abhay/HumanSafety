@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'env_config.dart';
 
 class AppConstants {
-  // API
-  static const String baseUrl = 'https://humansafety.onrender.com';
-  static const String wsUrl = 'wss://humansafety.onrender.com';
-  static const String apiVersion = '/v1';
+  // API (use EnvConfig instead of hardcoded values)
+  static String get baseUrl => EnvConfig.apiBaseUrl;
+  static String get wsUrl => EnvConfig.wsBaseUrl;
+  static const String apiVersion = '/api/v1';
   static const Duration apiTimeout = Duration(seconds: 30);
 
   // Storage keys

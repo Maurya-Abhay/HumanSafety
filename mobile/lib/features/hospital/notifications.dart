@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../shared/widgets.dart';
 import '../../core/theme.dart';
+import '../../core/portal_sound_service.dart';
 
 class HospitalNotificationsScreen extends StatefulWidget {
   const HospitalNotificationsScreen({super.key});
@@ -55,6 +56,12 @@ class _HospitalNotificationsScreenState
       color: Colors.greenAccent,
     ),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    PortalSoundService().playNotification();
+  }
 
   List<_HospitalNotificationItem> get _filteredNotifications {
     if (_selectedFilter == 'All') return _allNotifications;

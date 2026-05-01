@@ -5,6 +5,7 @@ import '../../core/theme.dart';
 import '../../core/api_service.dart';
 import '../../core/storage_service.dart';
 import '../../core/constants.dart';
+import '../../core/portal_sound_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -34,6 +35,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _alerts = alerts;
           _loading = false;
         });
+        if (alerts.isNotEmpty) {
+          await PortalSoundService().playAlert();
+        }
       }
     } catch (e) {
       setState(() {

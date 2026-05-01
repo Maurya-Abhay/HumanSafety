@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../shared/widgets.dart';
 import '../../core/routes.dart';
 import '../../core/theme.dart';
+import '../../core/portal_sound_service.dart';
 
 class PoliceNotificationsScreen extends StatefulWidget {
   const PoliceNotificationsScreen({super.key});
@@ -45,6 +46,12 @@ class _PoliceNotificationsScreenState extends State<PoliceNotificationsScreen> {
       color: Colors.orangeAccent,
     ),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    PortalSoundService().playAlert();
+  }
 
   List<_PoliceNotificationItem> get _filteredNotifications {
     if (_selectedFilter == 'All') return _allNotifications;

@@ -4,7 +4,10 @@ import 'package:provider/provider.dart';
 import 'core/theme.dart';
 import 'core/routes.dart';
 import 'core/constants.dart';
+import 'core/emergency_orchestrator.dart';
 import 'core/sensor_service.dart';
+import 'core/audio_service.dart';
+import 'core/portal_sound_service.dart';
 import 'features/auth/splash.dart';
 import 'shared/models.dart';
 
@@ -21,7 +24,10 @@ class HumanSafetyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CasesProvider()),
         ChangeNotifierProvider(create: (_) => NotificationsProvider()),
         ChangeNotifierProvider(create: (_) => StatsProvider()),
+        ChangeNotifierProvider(create: (_) => EmergencyOrchestrator()),
         ChangeNotifierProvider(create: (_) => SensorService()),
+        ChangeNotifierProvider(create: (_) => AudioService()),
+        ChangeNotifierProvider(create: (_) => PortalSoundService()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {

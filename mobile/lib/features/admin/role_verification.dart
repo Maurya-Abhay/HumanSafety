@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
+import '../../core/network_client.dart';
 import 'dart:convert';
 import 'dart:ui';
 
@@ -34,19 +35,15 @@ class _RoleVerificationScreenState extends State<RoleVerificationScreen> {
       final authProvider = context.read<AuthProvider>();
       final token = authProvider.token;
 
-      final response = await http.get(
-        Uri.parse(
-            '${ApiService.baseUrl}/api/v1/admin/role-applications?status=$_filterStatus'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
+      final dio = NetworkClient().client;
+      final resp = await dio.get('/api/v1/admin/role-applications', queryParameters: {'status': _filterStatus}, options: Options(headers: {
+        'Authorization': 'Bearer $token',
+      }));
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+      if (resp.statusCode == 200) {
+        final data = resp.data is String ? jsonDecode(resp.data) : resp.data;
         setState(() {
-          _applications = data['applications'] ?? [];
+          _applications = (data as Map<String, dynamic>)['applications'] ?? [];
           _isLoading = false;
         });
       } else {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../shared/widgets.dart';
-import '../../shared/models.dart' as models;
+import '../../core/api_service.dart';
 import '../../core/routes.dart';
 import '../../core/theme.dart';
 import '../../core/storage_service.dart';
@@ -14,7 +15,7 @@ class ContactsScreen extends StatefulWidget {
 }
 
 class _ContactsScreenState extends State<ContactsScreen> {
-  List<models.Contact> contacts = [];
+  List<Contact> contacts = [];
   bool isLoading = true;
   String? error;
   
@@ -167,7 +168,10 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.call_rounded, color: AppColors.success, size: 20),
-                      onPressed: () { /* URL Launcher logic */ },
+                      onPressed: () async {
+                        final uri = Uri.parse('tel:${contact.phone}');
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      },
                     ),
                     IconButton(
                       icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 20),
@@ -221,16 +225,21 @@ class _ContactsScreenState extends State<ContactsScreen> {
     try {
       final token = await StorageService.getString(AppConstants.tokenKey);
       if (token != null) {
-        // TODO: Fetch contacts from API
-        // final response = await ApiService.getContacts(token);
-        // setState(() => contacts = response);
+        final response = await ApiService.getContacts(token);
+        if (mounted) {
+          setState(() => contacts = response);
+        }
+      } else {
+        contacts = [];
       }
-      setState(() => isLoading = false);
     } catch (e) {
       setState(() {
         error = e.toString();
-        isLoading = false;
       });
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
@@ -242,12 +251,21 @@ class _ContactsScreenState extends State<ContactsScreen> {
         );
         return;
       }
-      // TODO: Add contact via API
-      // await ApiService.addContact(...);
+      final token = await StorageService.getString(AppConstants.tokenKey);
+      if (token != null) {
+        await ApiService.addContact(
+          token,
+          name: nameController.text.trim(),
+          phone: phoneController.text.trim(),
+          relation: relationController.text.trim().isEmpty ? 'Friend' : relationController.text.trim(),
+        );
+      }
       nameController.clear();
       phoneController.clear();
       relationController.clear();
-      Navigator.pop(context);
+      if (mounted) {
+        Navigator.pop(context);
+      }
       await _loadContacts();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -258,8 +276,10 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   Future<void> _deleteContact(String contactId) async {
     try {
-      // TODO: Delete contact via API
-      // await ApiService.deleteContact(token, contactId);
+      final token = await StorageService.getString(AppConstants.tokenKey);
+      if (token != null) {
+        await ApiService.deleteContact(token, contactId);
+      }
       await _loadContacts();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(

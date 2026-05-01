@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const http = require('http');
 const WebSocket = require('ws');
 const connectDB = require('./config/db');
+const rateLimit = require('express-rate-limit');
 
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
@@ -26,11 +27,54 @@ const FailureHandlingService = require('./services/failure_handling_service');
 const app = express();
 connectDB();
 
-// ================= SAFE MIDDLEWARE =================
+// ================= RATE LIMITING =================
+const limiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
+  legacyHeaders: false, // Disable `X-RateLimit-*` headers
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Stricter limit for auth endpoints
+  message: 'Too many login attempts, please try again later.',
+  skipSuccessfulRequests: false,
+});
+
+// ================= SECURITY MIDDLEWARE =================
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-app.use(cors());
 
+// CORS: Restrict to known origins in production, but allow local Flutter web ports
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    const isLocalDevOrigin = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+    const isAllowedOrigin = allowedOrigins.includes(origin);
+
+    if (isAllowedOrigin || isLocalDevOrigin) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+app.use(cors(corsOptions));
+
+// Request ID tracking
 app.use((req, res, next) => {
   req.requestId = `REQ-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   req.ipAddress = req.ip;
@@ -38,8 +82,15 @@ app.use((req, res, next) => {
   next();
 });
 
+// Apply rate limiting globally (except health check)
+app.use((req, res, next) => {
+  if (req.path === '/health') return next();
+  limiter(req, res, next);
+});
+
 // ================= ROUTES =================
-app.use('/api/v1/auth', authRoutes);
+// Apply stricter rate limiting to auth endpoints
+app.use('/api/v1/auth', authLimiter, authRoutes);
 app.use('/api/v1/user', userRoutes);
 app.use('/api/v1/contact', contactRoutes);
 app.use('/api/v1/emergency', emergencyRoutes);
@@ -52,6 +103,7 @@ app.use('/api/v1/police', policeRoutes);
 app.use('/api/v1/hospital-admin', hospitalAdminRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/case', caseRoutes);
+
 
 // Legacy routes (safe wrapper)
 [
@@ -126,7 +178,78 @@ wss.on('connection', (ws, req) => {
     ws.on('message', (data) => {
       try {
         const msg = JSON.parse(data);
-      } catch {}
+        
+        // Route message based on type
+        switch (msg.type) {
+          case 'subscribe':
+            // Subscribe to a specific channel/topic
+            realtimeService.subscribeToChannel(userId, msg.channel);
+            ws.send(JSON.stringify({
+              type: 'SUBSCRIPTION_CONFIRMED',
+              channel: msg.channel,
+              timestamp: new Date().toISOString()
+            }));
+            break;
+            
+          case 'unsubscribe':
+            // Unsubscribe from a channel
+            realtimeService.unsubscribeFromChannel(userId, msg.channel);
+            ws.send(JSON.stringify({
+              type: 'UNSUBSCRIPTION_CONFIRMED',
+              channel: msg.channel,
+              timestamp: new Date().toISOString()
+            }));
+            break;
+            
+          case 'location_update':
+            // User sending real-time location update
+            if (msg.latitude && msg.longitude) {
+              realtimeService.broadcastByRole('admin', {
+                type: 'LOCATION_UPDATE',
+                userId,
+                location: {
+                  latitude: msg.latitude,
+                  longitude: msg.longitude,
+                  accuracy: msg.accuracy
+                },
+                timestamp: new Date().toISOString()
+              });
+            }
+            break;
+            
+          case 'case_status_request':
+            // Client requesting case status update
+            if (msg.caseId) {
+              // In real impl, fetch case from DB and send status
+              realtimeService.sendToClient(userId, {
+                type: 'CASE_STATUS',
+                caseId: msg.caseId,
+                // status would be fetched from database
+                timestamp: new Date().toISOString()
+              });
+            }
+            break;
+            
+          case 'ping':
+            // Respond to ping (keep-alive)
+            ws.send(JSON.stringify({
+              type: 'pong',
+              timestamp: new Date().toISOString()
+            }));
+            break;
+            
+          default:
+            // Unknown message type - log but don't error
+            console.warn(`Unknown WebSocket message type: ${msg.type} from ${userId}`);
+        }
+      } catch (parseError) {
+        console.error('WebSocket message parse error:', parseError.message);
+        ws.send(JSON.stringify({
+          type: 'ERROR',
+          message: 'Invalid message format',
+          timestamp: new Date().toISOString()
+        }));
+      }
     });
 
     ws.on('close', () => realtimeService.unregisterClient(userId, ws));
