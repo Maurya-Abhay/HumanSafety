@@ -11,6 +11,7 @@ class AppColors {
   static const Color grey = Color(0xFF9E9E9E);
   static const Color greyLight = Color(0xFFEEEEEE);
   static const Color greyDark = Color(0xFF424242);
+  static const Color whiteBorders = Color(0xFFE2E8F0);
   static const Color success = Color(0xFF4CAF50);
   static const Color warning = Color(0xFFFFA726);
   static const Color error = Color(0xFFEF5350);

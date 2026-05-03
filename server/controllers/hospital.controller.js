@@ -78,36 +78,45 @@ const getNearbyHospitals = async (req, res) => {
 };
 
 // Get hospital alerts (emergency cases)
+const mongoose = require('mongoose');
+
 const getHospitalAlerts = async (req, res) => {
   try {
-    const { Case, Emergency } = require('../models');
-    const userId = req.user._id;
+    const userId = req.user && (req.user._id || req.user.userId);
+    if (!userId) return res.status(401).json({ message: 'Unauthorized: missing user' });
+
+    // Support metadata.hospitalId stored as either ObjectId or string
+    const orClause = [{ 'metadata.hospitalId': userId }];
+    if (mongoose.Types.ObjectId.isValid(String(userId))) {
+      orClause.push({ 'metadata.hospitalId': mongoose.Types.ObjectId(String(userId)) });
+    }
 
     // Get alerts assigned to this hospital
     const alerts = await Alert.find({
       type: 'hospital',
-      'metadata.hospitalId': userId,
-      status: { $in: ['pending', 'active'] }
+      status: { $in: ['pending', 'active'] },
+      $or: orClause,
     })
       .populate('userId', 'name phone')
       .sort({ createdAt: -1 })
       .limit(20);
 
-    const hospitalAlerts = alerts.map(a => ({
-      id: a._id,
-      caseId: a._id,
+    const hospitalAlerts = (alerts || []).map(a => ({
+      id: a._id?.toString(),
+      caseId: a._id?.toString(),
       title: 'Emergency Case',
       description: a.description || 'Hospital alert',
-      status: a.status,
+      status: a.status || 'pending',
       priority: 'high',
-      location: a.location,
-      userId: a.userId?._id,
-      createdAt: a.createdAt,
+      location: a.location || {},
+      userId: a.userId?._id?.toString(),
+      createdAt: a.createdAt ? a.createdAt.toISOString() : new Date().toISOString(),
     }));
 
-    res.status(200).json(hospitalAlerts);
+    return res.status(200).json(hospitalAlerts);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch alerts', error: error.message });
+    console.error('getHospitalAlerts error:', error);
+    return res.status(500).json({ message: 'Failed to fetch alerts', error: String(error) });
   }
 };
 

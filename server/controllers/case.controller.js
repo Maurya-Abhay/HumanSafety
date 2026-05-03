@@ -2,6 +2,47 @@
 const Alert = require('../models/alert.model');
 const User = require('../models/user.model');
 
+// Create a new case (used by admin/dispatcher or automated systems)
+const createCase = async (req, res) => {
+  try {
+    const { type, location, description, metadata, attachments, tags } = req.body;
+    if (!location || !location.latitude || !location.longitude) {
+      return res.status(400).json({ message: 'Valid location required' });
+    }
+
+    const caseDoc = await Alert.create({
+      userId: req.user?._id || null,
+      type: type || 'help',
+      location,
+      description: description || '',
+      metadata: metadata || {},
+      attachments: attachments || [],
+      tags: tags || [],
+      status: 'pending',
+    });
+
+    return res.status(201).json({ message: 'Case created', caseId: caseDoc._id });
+  } catch (error) {
+    return res.status(500).json({ message: 'Case creation failed', error: error.message });
+  }
+};
+
+// Get case details
+const getCaseById = async (req, res) => {
+  try {
+    const { caseId } = req.params;
+    const caseDoc = await Alert.findById(caseId)
+      .populate('userId', 'name phone')
+      .populate('assignedPolice', 'name phone policeDetails')
+      .populate('assignedHospital', 'hospitalDetails');
+
+    if (!caseDoc) return res.status(404).json({ message: 'Case not found' });
+    return res.status(200).json(caseDoc);
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to fetch case', error: error.message });
+  }
+};
+
 // Dispatcher assigns case to police
 const assignCaseToPolice = async (req, res) => {
   try {
@@ -210,6 +251,113 @@ const getPendingCases = async (req, res) => {
   }
 };
 
+// Add file attachment to a case (expects multipart/form-data with field 'file')
+const addAttachment = async (req, res) => {
+  try {
+    const { caseId } = req.params;
+    if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+
+    const caseDoc = await Alert.findById(caseId);
+    if (!caseDoc) return res.status(404).json({ message: 'Case not found' });
+
+    const file = req.file;
+    const attachment = {
+      url: `/uploads/case_attachments/${file.filename}`,
+      filename: file.originalname,
+      mimeType: file.mimetype,
+      uploadedBy: req.user?._id || null,
+      uploadedAt: new Date(),
+      size: file.size,
+    };
+
+    caseDoc.attachments = caseDoc.attachments || [];
+    caseDoc.attachments.push(attachment);
+    caseDoc.auditTrail = caseDoc.auditTrail || [];
+    caseDoc.auditTrail.push({ action: 'ATTACHMENT_ADDED', actor: req.user?._id, timestamp: new Date(), details: attachment.filename });
+    await caseDoc.save();
+
+    return res.status(201).json({ message: 'Attachment added', attachment });
+  } catch (error) {
+    return res.status(500).json({ message: 'Attachment upload failed', error: error.message });
+  }
+};
+
+// Add evidence metadata to a case
+const addEvidence = async (req, res) => {
+  try {
+    const { caseId } = req.params;
+    const { type, description, referenceId } = req.body;
+
+    const caseDoc = await Alert.findById(caseId);
+    if (!caseDoc) return res.status(404).json({ message: 'Case not found' });
+
+    const evidence = {
+      type: type || 'photo',
+      description: description || '',
+      referenceId: referenceId || '',
+      chainOfCustody: [ { actor: req.user?._id || null, action: 'COLLECTED', timestamp: new Date(), notes: '' } ],
+    };
+
+    caseDoc.evidence = caseDoc.evidence || [];
+    caseDoc.evidence.push(evidence);
+    caseDoc.auditTrail = caseDoc.auditTrail || [];
+    caseDoc.auditTrail.push({ action: 'EVIDENCE_ADDED', actor: req.user?._id, timestamp: new Date(), details: evidence.type });
+    await caseDoc.save();
+
+    return res.status(201).json({ message: 'Evidence added', evidence });
+  } catch (error) {
+    return res.status(500).json({ message: 'Adding evidence failed', error: error.message });
+  }
+};
+
+// Delete attachment by filename
+const deleteAttachment = async (req, res) => {
+  try {
+    const { caseId, attachmentId } = req.params; // attachmentId holds filename in our simple scheme
+    const caseDoc = await Alert.findById(caseId);
+    if (!caseDoc) return res.status(404).json({ message: 'Case not found' });
+
+    const idx = caseDoc.attachments.findIndex(a => a.filename === attachmentId || a._id?.toString() === attachmentId);
+    if (idx === -1) return res.status(404).json({ message: 'Attachment not found' });
+
+    const removed = caseDoc.attachments.splice(idx, 1)[0];
+    caseDoc.auditTrail = caseDoc.auditTrail || [];
+    caseDoc.auditTrail.push({ action: 'ATTACHMENT_REMOVED', actor: req.user?._id, timestamp: new Date(), details: removed.filename });
+    await caseDoc.save();
+
+    return res.status(200).json({ message: 'Attachment removed', removed });
+  } catch (error) {
+    return res.status(500).json({ message: 'Deleting attachment failed', error: error.message });
+  }
+};
+
+// Delete evidence by index or referenceId
+const deleteEvidence = async (req, res) => {
+  try {
+    const { caseId, evidenceId } = req.params; // evidenceId may be index or referenceId
+    const caseDoc = await Alert.findById(caseId);
+    if (!caseDoc) return res.status(404).json({ message: 'Case not found' });
+
+    let idx = -1;
+    if (/^\d+$/.test(evidenceId)) {
+      idx = parseInt(evidenceId, 10);
+    } else {
+      idx = caseDoc.evidence.findIndex(e => e.referenceId === evidenceId);
+    }
+
+    if (idx < 0 || idx >= (caseDoc.evidence || []).length) return res.status(404).json({ message: 'Evidence not found' });
+
+    const removed = caseDoc.evidence.splice(idx, 1)[0];
+    caseDoc.auditTrail = caseDoc.auditTrail || [];
+    caseDoc.auditTrail.push({ action: 'EVIDENCE_REMOVED', actor: req.user?._id, timestamp: new Date(), details: removed.referenceId || removed.type });
+    await caseDoc.save();
+
+    return res.status(200).json({ message: 'Evidence removed', removed });
+  } catch (error) {
+    return res.status(500).json({ message: 'Deleting evidence failed', error: error.message });
+  }
+};
+
 module.exports = {
   assignCaseToPolice,
   acceptCase,
@@ -218,4 +366,7 @@ module.exports = {
   resolveCase,
   getAssignedCases,
   getPendingCases,
+  createCase,
+  getCaseById,
+  // deleteCase handled below
 };

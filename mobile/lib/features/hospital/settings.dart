@@ -31,10 +31,8 @@ class _HospitalSettingsScreenState extends State<HospitalSettingsScreen> {
   Future<void> _loadSettings() async {
     final darkMode = await StorageService.getBool('darkMode') ?? false;
     final notifications = await StorageService.getBool('notifications') ?? true;
-    final emergencyAlerts =
-        await StorageService.getBool('emergencyAlerts') ?? true;
-    final ambulanceTracking =
-        await StorageService.getBool('ambulanceTracking') ?? true;
+    final emergencyAlerts = await StorageService.getBool('emergencyAlerts') ?? true;
+    final ambulanceTracking = await StorageService.getBool('ambulanceTracking') ?? true;
 
     if (!mounted) return;
     setState(() {
@@ -49,13 +47,19 @@ class _HospitalSettingsScreenState extends State<HospitalSettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Privacy Policy'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Privacy Policy',
+          style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+        ),
         content: const Text(
-            'Your data is securely stored and only used for emergency response and patient care purposes.'),
+          'Your data is securely stored and only used for emergency response and patient care purposes.',
+          style: TextStyle(color: Color(0xFF475569), fontSize: 14, height: 1.4),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: const Text('Close', style: TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -68,217 +72,383 @@ class _HospitalSettingsScreenState extends State<HospitalSettingsScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: CustomAppBar(
-        title: 'Control Settings',
-        showBackButton: false,
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+        centerTitle: false,
+        title: Text(
+          'Control Settings',
+          style: TextStyle(
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.5,
+          ),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_none_rounded,
-                color: Colors.white),
-            onPressed: () =>
-                Navigator.pushNamed(context, AppRoutes.hospitalNotifications),
+            icon: Icon(Icons.notifications_none_rounded, color: isDark ? Colors.white : const Color(0xFF475569)),
+            onPressed: () => Navigator.pushNamed(context, AppRoutes.hospitalNotifications),
           ),
           IconButton(
-            icon: const Icon(Icons.person_outline_rounded, color: Colors.white),
-            onPressed: () =>
-                Navigator.pushNamed(context, AppRoutes.hospitalProfile),
+            icon: Icon(Icons.person_outline_rounded, color: isDark ? Colors.white : const Color(0xFF475569)),
+            onPressed: () => Navigator.pushNamed(context, AppRoutes.hospitalProfile),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: ListView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        children: [
+          _buildHeroHeader(),
+          const SizedBox(height: 24),
+          _buildSectionHeader('Emergency System'),
+          const SizedBox(height: 10),
+          _buildToggleItem(
+            'Emergency Alerts',
+            'Instant critical notifications for new alerts',
+            _emergencyAlertsEnabled,
+            (value) {
+              setState(() => _emergencyAlertsEnabled = value);
+              StorageService.saveBool('emergencyAlerts', value);
+            },
+            Icons.emergency_rounded,
+            isDark,
+          ),
+          _buildToggleItem(
+            'Ambulance Tracking',
+            'Real-time live positioning access',
+            _ambulanceTrackingEnabled,
+            (value) {
+              setState(() => _ambulanceTrackingEnabled = value);
+              StorageService.saveBool('ambulanceTracking', value);
+            },
+            Icons.directions_car_rounded,
+            isDark,
+          ),
+          const SizedBox(height: 24),
+          _buildSectionHeader('Hospital Capacity'),
+          const SizedBox(height: 10),
+          _buildCapacityCard(isDark),
+          const SizedBox(height: 24),
+          _buildSectionHeader('App Preferences'),
+          const SizedBox(height: 10),
+          _buildToggleItem(
+            'Push Notifications',
+            'Updates regarding system activities',
+            _notificationsEnabled,
+            (value) {
+              setState(() => _notificationsEnabled = value);
+              StorageService.saveBool('notifications', value);
+            },
+            Icons.notifications_active_rounded,
+            isDark,
+          ),
+          _buildToggleItem(
+            'Dark Mode Theme',
+            'Easier on the eyes in low light',
+            _darkModeEnabled,
+            (value) {
+              setState(() => _darkModeEnabled = value);
+              StorageService.saveBool('darkMode', value);
+              final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+              themeProvider.toggleTheme();
+            },
+            Icons.dark_mode_rounded,
+            isDark,
+          ),
+          const SizedBox(height: 24),
+          _buildSectionHeader('Support & Legal'),
+          const SizedBox(height: 10),
+          _buildNavigationItem(
+            'Privacy Policy',
+            'How we treat user and patient data',
+            Icons.privacy_tip_rounded,
+            _showPrivacyPolicy,
+            isDark,
+          ),
+          _buildNavigationItem(
+            'Help & Technical Support',
+            'Contact system administrators',
+            Icons.support_agent_rounded,
+            () {},
+            isDark,
+          ),
+          const SizedBox(height: 36),
+          _buildLogoutButton(isDark),
+          const SizedBox(height: 24),
+        ],
+      ),
+      bottomNavigationBar: CustomBottomNav(
+        currentIndex: 3, 
+        onTap: (index) {
+          if (index == 0) Navigator.pushReplacementNamed(context, AppRoutes.hospitalDashboard);
+          if (index == 1) Navigator.pushReplacementNamed(context, AppRoutes.hospitalRequests);
+          if (index == 2) Navigator.pushReplacementNamed(context, AppRoutes.hospitalAmbulance);
+          if (index == 3) return;
+        },
+        items: const [
+          BottomNavItem(icon: Icons.dashboard_rounded, label: 'Dashboard'),
+          BottomNavItem(icon: Icons.emergency_rounded, label: 'Requests'),
+          BottomNavItem(icon: Icons.directions_car_rounded, label: 'Ambulance'),
+          BottomNavItem(icon: Icons.settings_rounded, label: 'Settings'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeroHeader() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0F172A), Color(0xFF1D4ED8), Color(0xFF2563EB)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF2563EB).withOpacity(0.24),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          )
+        ],
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.tune_rounded, color: Colors.white, size: 32),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Hospital Control Center',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18, letterSpacing: -0.4),
+                ),
+                SizedBox(height: 4),
+                  Text(
+                    'Tune alerts, tracking, and system behavior directly.',
+                    style: TextStyle(color: AppColors.whiteBorders, fontSize: 12, height: 1.3),
+                  ),
+              ],
+            ),
           ),
         ],
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: isDark
-                ? [const Color(0xFF121212), const Color(0xFF1E1E2E)]
-                : [const Color(0xFFF8F9FA), Colors.white],
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w800,
+        color: Color(0xFF64748B),
+        letterSpacing: 0.5,
+      ),
+    );
+  }
+
+  Widget _buildCapacityCard(bool isDark) {
+    return Consumer<AuthProvider>(
+      builder: (context, auth, _) {
+        final user = auth.user;
+        final totalBeds = user?.totalBeds ?? 0;
+        final availableBeds = user?.availableBeds ?? 0;
+
+        return Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0F172A).withOpacity(isDark ? 0.08 : 0.02),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              )
+            ],
           ),
-        ),
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF0F172A), Color(0xFF1D4ED8)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: const Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(Icons.settings_rounded, color: Colors.white, size: 28),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Hospital Control Center', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18)),
-                        SizedBox(height: 4),
-                        Text('Tune alerts, tracking, and display behavior from one place.', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                      ],
+                  const Text('Current Availability', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2563EB).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '$availableBeds / $totalBeds Beds',
+                      style: const TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.w800, fontSize: 13),
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 16),
-            _buildSectionTitle('Emergency Settings'),
-            const SizedBox(height: 8),
-            _buildToggleItem(
-              'Emergency Alerts',
-              'Receive critical emergency notifications',
-              _emergencyAlertsEnabled,
-              (value) {
-                setState(() => _emergencyAlertsEnabled = value);
-                StorageService.saveBool('emergencyAlerts', value);
-              },
-              Icons.emergency_rounded,
-            ),
-            _buildToggleItem(
-              'Ambulance Tracking',
-              'Enable real-time ambulance location tracking',
-              _ambulanceTrackingEnabled,
-              (value) {
-                setState(() => _ambulanceTrackingEnabled = value);
-                StorageService.saveBool('ambulanceTracking', value);
-              },
-              Icons.directions_car_rounded,
-            ),
-            const SizedBox(height: 16),
-            _buildSectionTitle('Hospital Capacity'),
-            const SizedBox(height: 8),
-            Consumer<AuthProvider>(
-              builder: (context, auth, _) {
-                final user = auth.user;
-                final totalBeds = user?.totalBeds ?? 0;
-                final availableBeds = user?.availableBeds ?? 0;
-                return CustomCard(
-                  backgroundColor: Colors.white,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Current beds: $availableBeds / $totalBeds', style: const TextStyle(fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 8),
-                      Text('Keep availability updated so routing stays accurate.', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                      const SizedBox(height: 14),
-                      SizedBox(
-                        width: double.infinity,
-                        child: PrimaryButton(
-                          label: _updatingBeds ? 'Updating...' : 'Update Bed Availability',
-                          isLoading: _updatingBeds,
-                          onPressed: () => _updateBedsDialog(auth, totalBeds, availableBeds),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-            _buildToggleItem(
-              'Push Notifications',
-              'Receive notifications for new requests',
-              _notificationsEnabled,
-              (value) {
-                setState(() => _notificationsEnabled = value);
-                StorageService.saveBool('notifications', value);
-              },
-              Icons.notifications_rounded,
-            ),
-            const SizedBox(height: 24),
-            _buildSectionTitle('Display Settings'),
-            const SizedBox(height: 8),
-            _buildToggleItem(
-              'Dark Mode',
-              'Switch to dark theme',
-              _darkModeEnabled,
-              (value) {
-                setState(() => _darkModeEnabled = value);
-                StorageService.saveBool('darkMode', value);
-                // Update theme provider
-                final themeProvider =
-                    Provider.of<ThemeProvider>(context, listen: false);
-                themeProvider.toggleTheme();
-              },
-              Icons.dark_mode_rounded,
-            ),
-            const SizedBox(height: 24),
-            _buildSectionTitle('Account'),
-            const SizedBox(height: 8),
-            _buildNavigationItem(
-              'Profile',
-              'Manage your hospital profile',
-              Icons.person_outline_rounded,
-              () => Navigator.pushNamed(context, AppRoutes.hospitalProfile),
-            ),
-            const SizedBox(height: 24),
-            _buildSectionTitle('Support'),
-            const SizedBox(height: 8),
-            _buildNavigationItem(
-              'Privacy Policy',
-              'Read our privacy policy',
-              Icons.privacy_tip_rounded,
-              _showPrivacyPolicy,
-            ),
-            _buildNavigationItem(
-              'Help & Support',
-              'Get help and contact support',
-              Icons.help_outline_rounded,
-              () {},
-            ),
-            const SizedBox(height: 32),
-            Center(
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  await StorageService.clear();
-                  if (!context.mounted) return;
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                    AppRoutes.login,
-                    (route) => false,
-                  );
-                },
-                icon: const Icon(Icons.logout_rounded),
-                label: const Text('Logout'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              const SizedBox(height: 6),
+              Text(
+                'Keep availability updated so critical dispatch remains accurate.',
+                style: TextStyle(color: isDark ? Colors.white60 : const Color(0xFF64748B), fontSize: 12),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: () => _updateBedsDialog(auth, totalBeds, availableBeds),
+                  icon: _updatingBeds ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.edit_calendar_rounded, size: 18),
+                  label: Text(_updatingBeds ? 'Updating...' : 'Update Available Beds', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-      bottomNavigationBar: CustomBottomNav(
-        currentIndex: 3, // Settings tab
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.pushReplacementNamed(
-                context, AppRoutes.hospitalDashboard);
-          }
-          if (index == 1) {
-            Navigator.pushReplacementNamed(context, AppRoutes.hospitalRequests);
-          }
-          if (index == 2) {
-            Navigator.pushReplacementNamed(
-                context, AppRoutes.hospitalAmbulance);
-          }
-          if (index == 3) return; // Current page
-        },
-        items: const [
-          BottomNavItem(icon: Icons.dashboard, label: 'Dashboard'),
-          BottomNavItem(icon: Icons.emergency, label: 'Requests'),
-          BottomNavItem(icon: Icons.directions_car, label: 'Ambulance'),
-          BottomNavItem(icon: Icons.settings, label: 'Settings'),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildToggleItem(
+    String title,
+    String subtitle,
+    bool value,
+    ValueChanged<bool> onChanged,
+    IconData icon,
+    bool isDark,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withOpacity(isDark ? 0.08 : 0.015),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          )
         ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2563EB).withOpacity(0.08),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: const Color(0xFF2563EB), size: 20),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(color: isDark ? Colors.white60 : const Color(0xFF64748B), fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: value,
+            onChanged: onChanged,
+            activeColor: const Color(0xFF10B981),
+            activeTrackColor: const Color(0xFF10B981).withOpacity(0.35),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavigationItem(
+    String title,
+    String subtitle,
+    IconData icon,
+    VoidCallback onTap,
+    bool isDark,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withOpacity(isDark ? 0.08 : 0.015),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF64748B).withOpacity(0.12),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: isDark ? Colors.white : const Color(0xFF475569), size: 20),
+        ),
+        title: Text(
+          title, 
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(color: isDark ? Colors.white60 : const Color(0xFF64748B), fontSize: 12),
+        ),
+        trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: isDark ? Colors.white38 : const Color(0xFF94A3B8)),
+        onTap: onTap,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    );
+  }
+
+  Widget _buildLogoutButton(bool isDark) {
+    return OutlinedButton.icon(
+      onPressed: () async {
+        await StorageService.clear();
+        if (!mounted) return;
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          AppRoutes.login,
+          (route) => false,
+        );
+      },
+      icon: const Icon(Icons.logout_rounded, size: 18),
+      label: const Text('Log Out From System', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: const Color(0xFFEF4444),
+        side: const BorderSide(color: Color(0xFFFEE2E2), width: 1.5),
+        backgroundColor: const Color(0xFFFFFAFA),
+        minimumSize: const Size(double.infinity, 54),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }
@@ -289,18 +459,44 @@ class _HospitalSettingsScreenState extends State<HospitalSettingsScreen> {
     final confirmed = await showDialog<int>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Update Bed Availability'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            labelText: 'Available beds',
-            helperText: 'Max: $totalBeds',
-          ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Update Bed Availability', style: TextStyle(fontWeight: FontWeight.w800)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Enter exact total current available beds:', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFFF1F5F9),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                helperText: 'Capacity ceiling: Max $totalBeds',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              ),
+            ),
+          ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, int.tryParse(controller.text.trim())), child: const Text('Save')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, int.tryParse(controller.text.trim())),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Update', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
         ],
       ),
     );
@@ -308,7 +504,9 @@ class _HospitalSettingsScreenState extends State<HospitalSettingsScreen> {
     if (confirmed == null) return;
     if (confirmed < 0 || confirmed > totalBeds) {
       if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(content: Text('Enter a valid bed count')));
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Please enter a valid bed count'), backgroundColor: Colors.orangeAccent),
+      );
       return;
     }
 
@@ -323,78 +521,18 @@ class _HospitalSettingsScreenState extends State<HospitalSettingsScreen> {
         }
       }
       if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(content: Text('Bed availability updated')));
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Bed capacity successfully updated'), backgroundColor: Color(0xFF10B981)),
+      );
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('Update failed: $e')));
+      messenger.showSnackBar(
+        SnackBar(content: Text('Update failed: $e'), backgroundColor: Colors.redAccent),
+      );
     } finally {
       if (mounted) setState(() => _updatingBeds = false);
     }
   }
-
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
-        color: AppColors.primary,
-      ),
-    );
-  }
-
-  Widget _buildToggleItem(
-    String title,
-    String subtitle,
-    bool value,
-    ValueChanged<bool> onChanged,
-    IconData icon,
-  ) {
-    return CustomCard(
-      backgroundColor: Colors.white,
-      child: SwitchListTile(
-        title: Row(
-          children: [
-            Icon(icon, color: AppColors.primary),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title,
-                      style: const TextStyle(fontWeight: FontWeight.w500)),
-                  Text(
-                    subtitle,
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        value: value,
-        onChanged: onChanged,
-        activeThumbColor: AppColors.primary,
-      ),
-    );
-  }
-
-  Widget _buildNavigationItem(
-    String title,
-    String subtitle,
-    IconData icon,
-    VoidCallback onTap,
-  ) {
-    return CustomCard(
-      backgroundColor: Colors.white,
-      child: ListTile(
-        leading: Icon(icon, color: AppColors.primary),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
-        subtitle: Text(subtitle,
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
-        onTap: onTap,
-      ),
-    );
-  }
 }
+
+// (removed invalid Colors extension) Using `AppColors.whiteBorders` from core/theme.dart

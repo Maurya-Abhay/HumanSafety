@@ -403,8 +403,18 @@ class ApiService {
         final data = resp.data is String ? jsonDecode(resp.data) : resp.data;
         return (data as List).map((item) => CaseItem.fromJson(item)).toList();
       } else {
-        throw ApiException('Failed to fetch hospital alerts', resp.statusCode ?? 0);
+        final body = resp.data is String ? jsonDecode(resp.data) : resp.data;
+        final message = body is Map && body['message'] != null ? body['message'] : 'Failed to fetch hospital alerts';
+        throw ApiException(message, resp.statusCode ?? 0);
       }
+    } on DioError catch (de) {
+      final resp = de.response;
+      if (resp != null) {
+        final body = resp.data is String ? jsonDecode(resp.data) : resp.data;
+        final message = body is Map && body['message'] != null ? body['message'] : 'Server error';
+        throw ApiException(message, resp.statusCode ?? 0);
+      }
+      throw ApiException('Network error: ${de.message}', 0);
     } catch (e) {
       throw ApiException('Failed to fetch hospital alerts: ${e.toString()}', 0);
     }

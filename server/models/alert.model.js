@@ -26,6 +26,48 @@ const alertSchema = new mongoose.Schema(
     lastStatusUpdate: { type: Date, default: null },
     resolutionDetails: { type: String, default: '' },
     resolvedAt: { type: Date, default: null },
+    
+      // Attachments & Evidence
+      attachments: [
+        {
+          url: { type: String },
+          filename: { type: String },
+          mimeType: { type: String },
+          uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+          uploadedAt: { type: Date, default: Date.now },
+          size: { type: Number, default: 0 },
+        },
+      ],
+    
+      evidence: [
+        {
+          type: { type: String, default: 'photo' },
+          description: { type: String, default: '' },
+          referenceId: { type: String, default: '' },
+          chainOfCustody: [
+            {
+              actor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+              action: String,
+              timestamp: { type: Date, default: Date.now },
+              notes: String,
+            },
+          ],
+        },
+      ],
+    
+      // Assignment & audit
+      assignedAt: { type: Date, default: null },
+      respondedAt: { type: Date, default: null },
+      auditTrail: [
+        {
+          action: { type: String },
+          actor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+          timestamp: { type: Date, default: Date.now },
+          details: { type: String, default: '' },
+        },
+      ],
+      tags: [{ type: String }],
+      severityScore: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

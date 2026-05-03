@@ -1,5 +1,6 @@
 // Police registration and management controller
 const User = require('../models/user.model');
+const Alert = require('../models/alert.model');
 const { sendSMS } = require('../services/sms.service');
 
 // Police requests account (registration request)
@@ -164,29 +165,29 @@ const getAllPoliceOfficers = async (req, res) => {
 // Get police alerts (assigned cases)
 const getPoliceAlerts = async (req, res) => {
   try {
-    const { Emergency, Case } = require('../models');
     const userId = req.user._id;
 
-    // Get cases assigned to this police officer that are pending or in progress
-    const cases = await Case.find({
-      assignedTo: userId,
-      status: { $in: ['pending', 'in_progress'] }
+    // Use Alert model (case records) assigned to this police officer
+    const cases = await Alert.find({
+      assignedPolice: userId,
+      status: { $in: ['pending', 'in-progress'] }
     })
       .populate('userId', 'name phone')
       .sort({ createdAt: -1 })
-      .limit(20);
+      .limit(50);
 
     const alerts = cases.map(c => ({
       id: c._id,
       caseId: c._id,
-      title: c.title || 'Emergency Case',
-      description: c.description || 'Assigned case',
+      title: c.type || 'Emergency Case',
+      description: c.description || c.metadata || 'Assigned case',
       status: c.status,
       priority: c.priority || 'high',
       location: c.location,
       userId: c.userId?._id,
       createdAt: c.createdAt,
-      assignedAt: c.updatedAt,
+      assignedAt: c.acceptedAt || c.updatedAt,
+      eta: c.eta || null,
     }));
 
     res.status(200).json(alerts);
