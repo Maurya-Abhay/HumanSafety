@@ -1,7 +1,5 @@
 import 'dart:typed_data';
 
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'env_config.dart';
 
@@ -14,25 +12,11 @@ class NotificationService {
 
   NotificationService._internal();
 
-  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
   Future<void> initialize() async {
     try {
-      EnvConfig.debugPrint('Initializing Firebase Messaging...');
-
-      // Request notification permissions
-      NotificationSettings settings = await _firebaseMessaging.requestPermission(
-        alert: true,
-        announcement: false,
-        badge: true,
-        carPlay: false,
-        criticalAlert: false,
-        provisional: false,
-        sound: true,
-      );
-
-      EnvConfig.debugPrint('Notification permissions: ${settings.authorizationStatus}');
+      EnvConfig.debugPrint('Initializing local notifications...');
 
       // Initialize local notifications for Android
       const AndroidInitializationSettings androidInitializationSettings =
@@ -53,57 +37,8 @@ class NotificationService {
       await _flutterLocalNotificationsPlugin.initialize(
         settings: initializationSettings,
       );
-
-      // Handle message when app is in foreground
-      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        _handleForegroundMessage(message);
-      });
-
-      // Handle message when app is opened from terminated state
-      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        _handleBackgroundMessage(message);
-      });
-
-      // Handle background messages (when app is closed)
-      FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundMessageHandler);
-
-      // Get the device token
-      String? token = await _firebaseMessaging.getToken();
-      if (token != null) {
-        EnvConfig.debugPrint('FCM Token: $token');
-        // TODO: Send this token to your backend during user registration
-      }
-
-      // Listen for token refreshes
-      _firebaseMessaging.onTokenRefresh.listen((newToken) {
-        EnvConfig.debugPrint('FCM Token refreshed: $newToken');
-        // TODO: Update token on backend
-      });
     } catch (e) {
-      EnvConfig.debugPrint('Error initializing Firebase Messaging: $e');
-    }
-  }
-
-  void _handleForegroundMessage(RemoteMessage message) {
-    EnvConfig.debugPrint('Foreground message received: ${message.notification?.title}');
-
-    // Show local notification when app is in foreground
-    _showLocalNotification(
-      title: message.notification?.title ?? 'HumanSafety Alert',
-      body: message.notification?.body ?? '',
-      payload: message.data,
-    );
-  }
-
-  void _handleBackgroundMessage(RemoteMessage message) {
-    EnvConfig.debugPrint('Background message clicked: ${message.notification?.title}');
-
-    // Handle navigation based on message data
-    final type = message.data['type'];
-
-    if (type == 'case_assigned') {
-      // Navigate to case details
-      // Navigator would be called here if context is available
+      EnvConfig.debugPrint('Error initializing notifications: $e');
     }
   }
 
@@ -148,24 +83,20 @@ class NotificationService {
     );
   }
 
+  Future<void> showEmergencyAlert({required String title, required String body}) async {
+    await _showLocalNotification(title: title, body: body);
+  }
+
   Future<String?> getDeviceToken() async {
-    return await _firebaseMessaging.getToken();
+    // Firebase Messaging removed from this build; no cloud token available.
+    return null;
   }
 
   Future<void> subscribeToTopic(String topic) async {
-    await _firebaseMessaging.subscribeToTopic(topic);
-    EnvConfig.debugPrint('Subscribed to topic: $topic');
+    EnvConfig.debugPrint('Topic subscription skipped (Firebase not enabled): $topic');
   }
 
   Future<void> unsubscribeFromTopic(String topic) async {
-    await _firebaseMessaging.unsubscribeFromTopic(topic);
-    EnvConfig.debugPrint('Unsubscribed from topic: $topic');
+    EnvConfig.debugPrint('Topic unsubscribe skipped (Firebase not enabled): $topic');
   }
-}
-
-// Top-level function to handle background messages
-@pragma('vm:entry-point')
-Future<void> _firebaseBackgroundMessageHandler(RemoteMessage message) async {
-  EnvConfig.debugPrint('Background message handled: ${message.notification?.title}');
-  // Handle background message here
 }

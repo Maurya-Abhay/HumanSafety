@@ -38,8 +38,10 @@ class PrimaryButton extends StatelessWidget {
           splashFactory: InkRipple.splashFactory, // Smoother ripple effect
           shadowColor: (backgroundColor ?? AppColors.primary).withOpacity(0.3),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14), // Slightly refined curves
+            borderRadius: BorderRadius.circular(18), // Softer premium curves
           ),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          minimumSize: const Size.fromHeight(56),
         ).copyWith(
           elevation: WidgetStateProperty.resolveWith<double>(
             (Set<WidgetState> states) {
@@ -63,7 +65,7 @@ class PrimaryButton extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5, // Reduced for premium typography
+                  letterSpacing: 0.2,
                 ),
               ),
       ),
@@ -95,18 +97,19 @@ class SecondaryButton extends StatelessWidget {
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
-          side: BorderSide(color: themeColor.withOpacity(0.5), width: 1.5),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          side: BorderSide(color: themeColor.withOpacity(0.45), width: 1.25),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           foregroundColor: themeColor,
           splashFactory: InkRipple.splashFactory,
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          minimumSize: const Size.fromHeight(56),
         ).copyWith(
           side: WidgetStateProperty.resolveWith<BorderSide>(
             (Set<WidgetState> states) {
               if (states.contains(WidgetState.pressed)) {
                 return BorderSide(color: themeColor, width: 2);
               }
-              return BorderSide(color: themeColor.withOpacity(0.5), width: 1.5);
+              return BorderSide(color: themeColor.withOpacity(0.45), width: 1.25);
             },
           ),
         ),
@@ -476,104 +479,66 @@ class CustomBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? const Color(0xFF15161A) : Colors.white;
+    final selectedColor = isDark ? AppColors.primaryLight : AppColors.primary;
+    final unselectedColor = isDark ? Colors.white60 : Colors.grey.shade600;
+    final bottomInset = MediaQuery.of(context).padding.bottom;
 
     return Container(
-      // STICKY SQUARE BASE: premium square tiles for each nav item
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0B0B0B) : Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.45 : 0.06),
-            blurRadius: 10,
-            offset: const Offset(0, -3),
-          ),
-        ],
-        border: Border(
-          top: BorderSide(
-            color: isDark ? Colors.white10 : Colors.black.withOpacity(0.06),
-            width: 1,
-          ),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(items.length, (index) {
-              final isSelected = currentIndex == index;
-              final item = items[index];
-              const double tileSize = 40;
+      width: double.infinity,
+      color: surfaceColor,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: List.generate(items.length, (index) {
+                final isSelected = currentIndex == index;
+                final item = items[index];
 
-              return Expanded(
-                child: InkWell(
-                  onTap: onTap == null ? null : () => onTap!(index),
-                  splashFactory: InkRipple.splashFactory,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 220),
-                        height: 2,
-                        width: isSelected ? 18 : 0,
-                        decoration: BoxDecoration(
-                          color: isSelected ? AppColors.primary : Colors.transparent,
-                          borderRadius: BorderRadius.zero,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 220),
-                        width: tileSize,
-                        height: tileSize,
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppColors.primary
-                              : (isDark ? Colors.white12 : Colors.grey.shade100),
-                          borderRadius: BorderRadius.zero,
-                          border: Border.all(
-                            color: isSelected
-                                ? AppColors.primary.withOpacity(0.95)
-                                : (isDark ? Colors.white12 : Colors.black12),
-                            width: isSelected ? 0 : 0.5,
-                          ),
-                          boxShadow: isSelected
-                              ? [
-                                  BoxShadow(
-                                    color: AppColors.primary.withOpacity(0.18),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ]
-                              : [],
-                        ),
-                        child: Center(
-                          child: Icon(
+                return Expanded(
+                  child: InkWell(
+                    onTap: onTap == null ? null : () => onTap!(index),
+                    splashFactory: InkRipple.splashFactory,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
                             item.icon,
-                            size: 22,
-                            color: isSelected ? Colors.white : Colors.grey.shade700,
+                            size: 24,
+                            color: isSelected ? selectedColor : unselectedColor,
                           ),
-                        ),
+                          const SizedBox(height: 3),
+                          Text(
+                            item.label,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight:
+                                  isSelected ? FontWeight.w700 : FontWeight.w500,
+                              color: isSelected ? selectedColor : unselectedColor,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        item.label,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                          color: isSelected ? AppColors.primary : Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              );
-            }),
+                );
+              }),
+            ),
           ),
+          if (bottomInset > 0)
+            Container(
+              width: double.infinity,
+              height: bottomInset,
+              color: surfaceColor,
+            ),
+        ],
         ),
-      ),
     );
   }
 }

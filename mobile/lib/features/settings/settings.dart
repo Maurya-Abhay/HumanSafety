@@ -3,11 +3,15 @@ import 'package:provider/provider.dart';
 import '../../shared/widgets.dart';
 import '../../shared/models.dart';
 import '../../core/routes.dart';
+import '../../core/page_transitions.dart';
 import '../../core/storage_service.dart';
 import '../../core/sensor_service.dart';
 import '../../core/background_service.dart';
 import '../../core/theme.dart';
 import '../../core/button_listener_service.dart';
+import '../user/home.dart';
+import '../user/sos.dart';
+import '../user/contacts.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -145,9 +149,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       bottomNavigationBar: CustomBottomNav(
         currentIndex: 3,
         onTap: (index) {
-          if (index == 0) Navigator.pushNamedAndRemoveUntil(context, AppRoutes.userHome, (route) => false);
-          if (index == 1) Navigator.pushNamed(context, AppRoutes.sos);
-          if (index == 2) Navigator.pushNamed(context, AppRoutes.contacts);
+          if (index == 0) PageTransitions.replaceSmooth(context, const UserHomeScreen());
+          if (index == 1) PageTransitions.replaceSmooth(context, const SOSScreen());
+          if (index == 2) PageTransitions.replaceSmooth(context, const ContactsScreen());
           if (index == 3) return; // Already on settings
         },
         items: [

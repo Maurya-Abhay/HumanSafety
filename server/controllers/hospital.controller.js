@@ -111,4 +111,119 @@ const getHospitalAlerts = async (req, res) => {
   }
 };
 
-module.exports = { requestHospital, getNearbyHospitals, getHospitalAlerts };
+// Hospital accepts an emergency alert
+const acceptAlert = async (req, res) => {
+  try {
+    const { alertId } = req.params;
+    const hospitalId = req.user._id;
+
+    const alert = await Alert.findById(alertId);
+    if (!alert) {
+      return res.status(404).json({ message: 'Alert not found' });
+    }
+
+    if (alert.metadata?.hospitalId?.toString() !== hospitalId.toString()) {
+      return res.status(403).json({ message: 'Not authorized to accept this alert' });
+    }
+
+    alert.status = 'active';
+    alert.metadata = alert.metadata || {};
+    alert.metadata.acceptedAt = new Date();
+    alert.metadata.acceptedBy = hospitalId;
+    await alert.save();
+
+    res.status(200).json({
+      message: 'Emergency accepted',
+      alert: {
+        id: alert._id,
+        status: alert.status,
+        acceptedAt: alert.metadata.acceptedAt,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to accept alert', error: error.message });
+  }
+};
+
+// Hospital rejects an emergency alert
+const rejectAlert = async (req, res) => {
+  try {
+    const { alertId } = req.params;
+    const { reason } = req.body;
+    const hospitalId = req.user._id;
+
+    const alert = await Alert.findById(alertId);
+    if (!alert) {
+      return res.status(404).json({ message: 'Alert not found' });
+    }
+
+    if (alert.metadata?.hospitalId?.toString() !== hospitalId.toString()) {
+      return res.status(403).json({ message: 'Not authorized to reject this alert' });
+    }
+
+    alert.status = 'rejected';
+    alert.metadata = alert.metadata || {};
+    alert.metadata.rejectionReason = reason || 'No reason provided';
+    alert.metadata.rejectedAt = new Date();
+    alert.metadata.rejectedBy = hospitalId;
+    await alert.save();
+
+    res.status(200).json({
+      message: 'Emergency rejected',
+      alert: { id: alert._id, status: alert.status },
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to reject alert', error: error.message });
+  }
+};
+
+// Hospital updates emergency status
+const updateAlertStatus = async (req, res) => {
+  try {
+    const { alertId } = req.params;
+    const { status } = req.body;
+    const hospitalId = req.user._id;
+
+    const validStatuses = ['in-progress', 'resolved', 'transferred', 'discharged'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        message: 'Invalid status. Must be one of: ' + validStatuses.join(', '),
+      });
+    }
+
+    const alert = await Alert.findById(alertId);
+    if (!alert) {
+      return res.status(404).json({ message: 'Alert not found' });
+    }
+
+    if (alert.metadata?.hospitalId?.toString() !== hospitalId.toString()) {
+      return res.status(403).json({ message: 'Not authorized to update this alert' });
+    }
+
+    alert.status = status;
+    alert.metadata = alert.metadata || {};
+    alert.metadata.lastStatusUpdate = new Date();
+    alert.metadata.lastUpdatedBy = hospitalId;
+    alert.metadata.statusHistory = alert.metadata.statusHistory || [];
+    alert.metadata.statusHistory.push({
+      status,
+      updatedAt: new Date(),
+      updatedBy: hospitalId,
+    });
+
+    await alert.save();
+
+    res.status(200).json({
+      message: 'Alert status updated',
+      alert: {
+        id: alert._id,
+        status: alert.status,
+        updatedAt: alert.metadata.lastStatusUpdate,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to update alert status', error: error.message });
+  }
+};
+
+module.exports = { requestHospital, getNearbyHospitals, getHospitalAlerts, acceptAlert, rejectAlert, updateAlertStatus };

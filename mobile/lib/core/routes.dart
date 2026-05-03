@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 /// AUTH
-import '../features/auth/splash.dart';
 import '../features/auth/login.dart';
 import '../features/auth/signup.dart';
 
@@ -29,8 +28,6 @@ import '../features/admin/settings.dart' as admin_settings;
 import '../features/hospital/dashboard.dart' as hospital_dashboard;
 import '../features/hospital/requests.dart';
 import '../features/hospital/profile.dart' as hospital_profile;
-import '../features/hospital/ambulance.dart' show AmbulanceScreen;
-import '../features/hospital/cases.dart' show HospitalCasesScreen;
 import '../features/hospital/notifications.dart' as hospital_notifications;
 import '../features/hospital/settings.dart' as hospital_settings;
 

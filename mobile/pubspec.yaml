@@ -24,11 +24,9 @@ dependencies:
   provider: ^6.0.0
   get_it: ^7.7.0
   
-  # DEVICE FEATURES
-  geolocator: ^10.1.0  # Version update kiya
+  # DEVICE FEATURES (ESSENTIAL ONLY)
+  geolocator: ^10.1.0
   sensors_plus: ^1.4.1
-  # hardware_buttons removed: package not available on pub.dev in this workspace.
-  # If you have a fork or local plugin, add it as a git or path dependency.
   
   # LOCAL STORAGE
   shared_preferences: ^2.2.0
@@ -36,22 +34,16 @@ dependencies:
   
   # UI UTILITIES
   intl: ^0.19.0
-  google_maps_flutter: ^2.5.0
   
-  # CONNECTIVITY
-  connectivity_plus: ^5.0.2
+  # CONNECTIVITY & AUDIO
   web_socket_channel: ^2.4.0
-  battery_plus: ^6.0.0
-  url_launcher: ^6.3.0
   audioplayers: ^6.1.0
   permission_handler: ^11.3.1
-  # Updated to a null-safety compatible version. If you have a specific
-  # tested version, adjust accordingly.
+  battery_plus: ^6.0.0
+  url_launcher: ^6.3.0
   noise_meter: ^5.0.2
   
-  # PUSH NOTIFICATIONS
-  firebase_messaging: ^16.2.0
-  firebase_core: ^4.7.0
+  # NOTIFICATIONS (Local only - no Firebase)
   flutter_local_notifications: ^21.0.0
   
   # PERFORMANCE

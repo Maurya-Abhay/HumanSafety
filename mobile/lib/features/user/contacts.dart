@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../shared/widgets.dart';
+import '../../shared/models.dart' show AuthProvider;
 import '../../core/api_service.dart';
 import '../../core/routes.dart';
+import '../../core/page_transitions.dart';
 import '../../core/theme.dart';
 import '../../core/storage_service.dart';
 import '../../core/constants.dart';
+import './home.dart';
+import './sos.dart';
+import '../settings/settings.dart';
 
 class ContactsScreen extends StatefulWidget {
   const ContactsScreen({super.key});
@@ -125,9 +131,9 @@ class _ContactsScreenState extends State<ContactsScreen> {
       bottomNavigationBar: CustomBottomNav(
         currentIndex: 2,
         onTap: (index) {
-           if (index == 0) Navigator.pushReplacementNamed(context, AppRoutes.userHome);
-           if (index == 1) Navigator.pushReplacementNamed(context, AppRoutes.sos);
-           if (index == 3) Navigator.pushReplacementNamed(context, AppRoutes.settings);
+          if (index == 0) PageTransitions.replaceSmooth(context, const UserHomeScreen());
+          if (index == 1) PageTransitions.replaceSmooth(context, const SOSScreen());
+          if (index == 3) PageTransitions.replaceSmooth(context, const SettingsScreen());
         },
         items: [
           BottomNavItem(icon: Icons.home_rounded, label: 'Home'),
@@ -140,33 +146,84 @@ class _ContactsScreenState extends State<ContactsScreen> {
   }
 
   Widget _buildContactList() {
+    final userName = context.watch<AuthProvider>().user?.name.trim();
+    final displayName = (userName == null || userName.isEmpty) ? 'User' : userName;
+
     return RefreshIndicator(
       onRefresh: _loadContacts,
       child: ListView.builder(
         padding: const EdgeInsets.all(20),
-        itemCount: contacts.length,
+        itemCount: contacts.length + 1,
         itemBuilder: (context, index) {
-          final contact = contacts[index];
+          if (index == 0) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFEAF2FF), Color(0xFFF5F9FF)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.2)),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                    child: Text(
+                      displayName.characters.first.toUpperCase(),
+                      style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Your Safety Circle', style: TextStyle(fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 2),
+                        Text('$displayName, you have ${contacts.length} trusted contacts', style: const TextStyle(fontSize: 12, color: AppColors.grey)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final contact = contacts[index - 1];
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: CustomCard(
               padding: EdgeInsets.zero,
+              backgroundColor: Colors.white,
               child: ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 leading: CircleAvatar(
                   radius: 25,
-                  backgroundColor: AppColors.primary.withOpacity(0.1),
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                   child: Text(
                     contact.name.isNotEmpty ? contact.name.characters.first.toUpperCase() : '?',
                     style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
                   ),
                 ),
                 title: Text(contact.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text(contact.relation, style: const TextStyle(color: AppColors.grey, fontSize: 12)),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(contact.relation, style: const TextStyle(color: AppColors.grey, fontSize: 12)),
+                    const SizedBox(height: 2),
+                    Text(contact.phone, style: const TextStyle(color: AppColors.grey, fontSize: 11)),
+                  ],
+                ),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
+                      tooltip: 'Call Contact',
                       icon: const Icon(Icons.call_rounded, color: AppColors.success, size: 20),
                       onPressed: () async {
                         final uri = Uri.parse('tel:${contact.phone}');
@@ -174,8 +231,9 @@ class _ContactsScreenState extends State<ContactsScreen> {
                       },
                     ),
                     IconButton(
+                      tooltip: 'Delete Contact',
                       icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 20),
-                      onPressed: () => _deleteContact(contact.id),
+                      onPressed: () => _confirmDeleteContact(contact),
                     ),
                   ],
                 ),
@@ -285,6 +343,37 @@ class _ContactsScreenState extends State<ContactsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error deleting contact: $e')),
       );
+    }
+  }
+
+  Future<void> _confirmDeleteContact(Contact contact) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete contact?'),
+        content: Text('Are you sure you want to remove ${contact.name} from your emergency contacts?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _deleteContact(contact.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${contact.name} deleted'), backgroundColor: AppColors.error),
+        );
+      }
     }
   }
 }

@@ -419,6 +419,149 @@ class ApiService {
     }
   }
 
+  static Future<List<HospitalFacility>> getActiveHospitals(String token) async {
+    try {
+      final dio = NetworkClient().client;
+      final resp = await dio.get('/api/v1/hospital-admin/active');
+      if (resp.statusCode != null && resp.statusCode! >= 200 && resp.statusCode! < 300) {
+        final data = resp.data is String ? jsonDecode(resp.data) : resp.data;
+        final hospitals = (data is Map && data['hospitals'] is List) ? data['hospitals'] as List : <dynamic>[];
+        return hospitals.map((item) => HospitalFacility.fromJson(item as Map<String, dynamic>)).toList();
+      }
+      throw ApiException('Failed to fetch active hospitals', resp.statusCode ?? 0);
+    } catch (e) {
+      throw ApiException('Failed to fetch active hospitals: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<void> updateHospitalBeds(String token, int availableBeds) async {
+    try {
+      final dio = NetworkClient().client;
+      final resp = await dio.post(
+        '/api/v1/hospital-admin/update-beds',
+        data: {'availableBeds': availableBeds},
+      );
+      if (resp.statusCode == null || resp.statusCode! < 200 || resp.statusCode! >= 300) {
+        throw ApiException('Failed to update bed availability', resp.statusCode ?? 0);
+      }
+    } catch (e) {
+      throw ApiException('Failed to update bed availability: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateHospitalProfile(
+    String token, {
+    String? hospitalName,
+    String? phone,
+    String? address,
+    List<String>? specializations,
+    String? contactPerson,
+  }) async {
+    try {
+      final dio = NetworkClient().client;
+      final data = <String, dynamic>{};
+      if (hospitalName != null) data['hospitalName'] = hospitalName;
+      if (phone != null) data['phone'] = phone;
+      if (address != null) data['address'] = address;
+      if (specializations != null) data['specializations'] = specializations;
+      if (contactPerson != null) data['contactPerson'] = contactPerson;
+
+      final resp = await dio.put(
+        '/api/v1/hospital-admin/profile',
+        data: data,
+      );
+      if (resp.statusCode == null || resp.statusCode! < 200 || resp.statusCode! >= 300) {
+        throw ApiException('Failed to update hospital profile', resp.statusCode ?? 0);
+      }
+      final responseData = resp.data is String ? jsonDecode(resp.data) : resp.data;
+      return (responseData is Map) ? responseData['hospital'] ?? responseData : {};
+    } catch (e) {
+      throw ApiException('Failed to update hospital profile: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateAlertStatus(String token, String alertId, String status) async {
+    try {
+      final dio = NetworkClient().client;
+      final resp = await dio.put(
+        '/api/v1/hospital/alerts/$alertId/status',
+        data: {'status': status},
+      );
+      if (resp.statusCode == null || resp.statusCode! < 200 || resp.statusCode! >= 300) {
+        throw ApiException('Failed to update alert status', resp.statusCode ?? 0);
+      }
+      final responseData = resp.data is String ? jsonDecode(resp.data) : resp.data;
+      return (responseData is Map) ? responseData['alert'] ?? responseData : {};
+    } catch (e) {
+      throw ApiException('Failed to update alert status: ${e.toString()}', 0);
+    }
+  }
+
+  // ============ AMBULANCE ENDPOINTS ============
+
+  static Future<List<AmbulanceInfo>> getHospitalAmbulances(String token) async {
+    try {
+      final dio = NetworkClient().client;
+      final resp = await dio.get('/api/v1/ambulance');
+      if (resp.statusCode != null && resp.statusCode! >= 200 && resp.statusCode! < 300) {
+        final data = resp.data is String ? jsonDecode(resp.data) : resp.data;
+        final ambulances = (data is Map && data['ambulances'] is List) ? data['ambulances'] as List : <dynamic>[];
+        return ambulances.map((item) => AmbulanceInfo.fromJson(item as Map<String, dynamic>)).toList();
+      }
+      throw ApiException('Failed to fetch ambulances', resp.statusCode ?? 0);
+    } catch (e) {
+      throw ApiException('Failed to fetch ambulances: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<Map<String, dynamic>> getAmbulanceLocation(String token, String ambulanceId) async {
+    try {
+      final dio = NetworkClient().client;
+      final resp = await dio.get('/api/v1/ambulance/$ambulanceId/location');
+      if (resp.statusCode == null || resp.statusCode! < 200 || resp.statusCode! >= 300) {
+        throw ApiException('Failed to fetch ambulance location', resp.statusCode ?? 0);
+      }
+      final responseData = resp.data is String ? jsonDecode(resp.data) : resp.data;
+      if (responseData is Map) {
+        return Map<String, dynamic>.from(responseData);
+      }
+      return <String, dynamic>{};
+    } catch (e) {
+      throw ApiException('Failed to fetch ambulance location: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<void> updateAmbulanceLocation(String token, double latitude, double longitude, String? address) async {
+    try {
+      final dio = NetworkClient().client;
+      final resp = await dio.put(
+        '/api/v1/ambulance/location',
+        data: {
+          'latitude': latitude,
+          'longitude': longitude,
+          'address': address,
+        },
+      );
+      if (resp.statusCode == null || resp.statusCode! < 200 || resp.statusCode! >= 300) {
+        throw ApiException('Failed to update ambulance location', resp.statusCode ?? 0);
+      }
+    } catch (e) {
+      throw ApiException('Failed to update ambulance location: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<void> markAmbulanceArrived(String token, String ambulanceId) async {
+    try {
+      final dio = NetworkClient().client;
+      final resp = await dio.put('/api/v1/ambulance/$ambulanceId/arrived');
+      if (resp.statusCode == null || resp.statusCode! < 200 || resp.statusCode! >= 300) {
+        throw ApiException('Failed to mark ambulance as arrived', resp.statusCode ?? 0);
+      }
+    } catch (e) {
+      throw ApiException('Failed to mark ambulance as arrived: ${e.toString()}', 0);
+    }
+  }
+
   // ============ ADMIN ENDPOINTS ============
 
   static Future<AdminStats> getAdminStats(String token) async {
@@ -853,6 +996,40 @@ class CaseItem {
   }
 }
 
+class HospitalFacility {
+  final String id;
+  final String name;
+  final String phone;
+  final int availableBeds;
+  final List<String> specializations;
+  final String? address;
+
+  HospitalFacility({
+    required this.id,
+    required this.name,
+    required this.phone,
+    required this.availableBeds,
+    required this.specializations,
+    this.address,
+  });
+
+  factory HospitalFacility.fromJson(Map<String, dynamic> json) {
+    final location = json['location'];
+    return HospitalFacility(
+      id: json['id']?.toString() ?? json['_id']?.toString() ?? '',
+      name: json['name'] ?? '',
+      phone: json['phone'] ?? '',
+      availableBeds: json['availableBeds'] is int
+          ? json['availableBeds']
+          : int.tryParse('${json['availableBeds'] ?? 0}') ?? 0,
+      specializations: json['specializations'] is List
+          ? List<String>.from(json['specializations'])
+          : const [],
+      address: location is Map ? location['address']?.toString() : null,
+    );
+  }
+}
+
 class AdminStats {
   final int totalCases;
   final int resolvedCases;
@@ -1012,6 +1189,54 @@ class Contact {
       'name': name,
       'phone': phone,
       'relation': relation,
+    };
+  }
+}
+
+class AmbulanceInfo {
+  final String id;
+  final String licenseNumber;
+  final String driverName;
+  final String status;
+  final Map<String, dynamic>? location;
+  final Map<String, dynamic>? eta;
+  final String? assignedPatient;
+  final bool isOnline;
+
+  AmbulanceInfo({
+    required this.id,
+    required this.licenseNumber,
+    required this.driverName,
+    required this.status,
+    this.location,
+    this.eta,
+    this.assignedPatient,
+    this.isOnline = false,
+  });
+
+  factory AmbulanceInfo.fromJson(Map<String, dynamic> json) {
+    return AmbulanceInfo(
+      id: json['id'] ?? json['_id'] ?? '',
+      licenseNumber: json['licenseNumber'] ?? '',
+      driverName: json['driverName'] ?? '',
+      status: json['status'] ?? 'available',
+      location: json['location'] is Map ? json['location'] as Map<String, dynamic> : null,
+      eta: json['eta'] is Map ? json['eta'] as Map<String, dynamic> : null,
+      assignedPatient: json['assignedPatient'],
+      isOnline: json['isOnline'] ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'licenseNumber': licenseNumber,
+      'driverName': driverName,
+      'status': status,
+      'location': location,
+      'eta': eta,
+      'assignedPatient': assignedPatient,
+      'isOnline': isOnline,
     };
   }
 }

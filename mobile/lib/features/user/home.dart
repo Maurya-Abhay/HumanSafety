@@ -61,9 +61,9 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
         currentIndex: _currentIndex,
         onTap: (index) {
           setState(() => _currentIndex = index);
-          if (index == 1) Navigator.push(context, PageTransitions.slideFromRight(const SOSScreen()));
-          if (index == 2) Navigator.push(context, PageTransitions.slideFromRight(const ContactsScreen()));
-          if (index == 3) Navigator.push(context, PageTransitions.slideFromRight(const SettingsScreen()));
+          if (index == 1) PageTransitions.replaceSmooth(context, const SOSScreen());
+          if (index == 2) PageTransitions.replaceSmooth(context, const ContactsScreen());
+          if (index == 3) PageTransitions.replaceSmooth(context, const SettingsScreen());
         },
         items: [
           BottomNavItem(icon: Icons.home_rounded, label: 'Home'),
@@ -78,12 +78,12 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   Widget _buildBody(bool isDark) {
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 120), // Extra bottom padding for floating nav
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // --- GREETING SECTION ---
-          _buildGreeting(isDark),
+          _buildGreeting(),
           
           const SizedBox(height: 25),
 
@@ -130,25 +130,35 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
 
   // --- REFINED UI COMPONENTS ---
 
-  Widget _buildGreeting(bool isDark) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildGreeting() {
+    return Consumer<AuthProvider>(
+      builder: (context, auth, _) {
+        final fullName = auth.user?.name.trim() ?? '';
+        final displayName = fullName.isEmpty ? 'User' : fullName.split(' ').first;
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text("PROTECTION ACTIVE", 
-              style: TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
-            const Text("Hello, Abhay", 
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -1)),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("PROTECTION ACTIVE",
+                    style: TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                Text("Hello, $displayName",
+                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -1)),
+              ],
+            ),
+            CircleAvatar(
+              radius: 24,
+              backgroundColor: AppColors.primary,
+              child: Text(
+                displayName.isNotEmpty ? displayName.characters.first.toUpperCase() : 'U',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            )
           ],
-        ),
-        const CircleAvatar(
-          radius: 24,
-          backgroundColor: AppColors.primary,
-          child: Icon(Icons.shield_rounded, color: Colors.white, size: 20),
-        )
-      ],
+        );
+      },
     );
   }
 

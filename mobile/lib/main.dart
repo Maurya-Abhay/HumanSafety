@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'app.dart';
 import 'core/env_config.dart';
-import 'core/storage_service.dart';
 import 'core/background_service.dart';
 import 'core/emergency_orchestrator.dart';
 import 'core/audio_service.dart';
@@ -11,38 +11,42 @@ import 'core/button_listener_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize environment configuration first
-  // Essential initialization only (keep startup fast)
-  await EnvConfig.initialize();
-  EnvConfig.debugPrint('API Base URL: ${EnvConfig.apiBaseUrl}');
-  EnvConfig.debugPrint('WebSocket URL: ${EnvConfig.wsBaseUrl}');
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    systemNavigationBarColor: Color(0xFF15161A),
+    systemNavigationBarDividerColor: Color(0xFF15161A),
+    systemNavigationBarIconBrightness: Brightness.light,
+    systemNavigationBarContrastEnforced: false,
+  ));
 
-  // Storage is required early for settings; initialize before UI
-  await StorageService.init();
-
-  // Start the app immediately; defer heavy/nonessential inits
+  // Start the app immediately; defer all inits until app is fully rendered.
   runApp(const HumanSafetyApp());
 
-  // Initialize background services without blocking UI
-  Future.microtask(() async {
-    try {
-      // Lightweight listener for hardware buttons (important)
-      ButtonListenerService().initialize();
+  // Defer everything: env config, background services, audio, sensors.
+  // This lets the first frame render almost instantly.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    Future.delayed(const Duration(milliseconds: 500), () async {
+      try {
+        // Load env config in background (not blocking UI).
+        await EnvConfig.initialize();
+        EnvConfig.debugPrint('API Base URL: ${EnvConfig.apiBaseUrl}');
+        EnvConfig.debugPrint('WebSocket URL: ${EnvConfig.wsBaseUrl}');
+      } catch (e) {
+        debugPrint('Env init error: $e');
+      }
 
-      // Non-UI background tasks
-      BackgroundService.initialize();
-      EmergencyOrchestrator().initialize();
-
-      // Audio and portal sound can initialize lazily; run in background
-      AudioService().initialize();
-      PortalSoundService().initialize();
-
-      // Request essential permissions in background (will prompt UI when needed)
-      PermissionService.requestEssentialPermissions();
-    } catch (e) {
-      // Don't crash the app if background init fails
-      debugPrint('Background init error: $e');
-    }
+      try {
+        // Initialize non-blocking background services after UI settles.
+        ButtonListenerService().initialize();
+        BackgroundService.initialize();
+        EmergencyOrchestrator().initialize();
+        AudioService().initialize();
+        PortalSoundService().initialize();
+        PermissionService.requestEssentialPermissions();
+      } catch (e) {
+        debugPrint('Background init error: $e');
+      }
+    });
   });
 }

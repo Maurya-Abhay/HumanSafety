@@ -24,6 +24,11 @@ class User {
   final String? emergencyContactName;
   final String? occupation;
   final String? about;
+  final String? hospitalName;
+  final int? totalBeds;
+  final int? availableBeds;
+  final List<String>? specializations;
+  final String? contactPerson;
 
   User({
     required this.id,
@@ -43,7 +48,62 @@ class User {
     this.emergencyContactName,
     this.occupation,
     this.about,
+    this.hospitalName,
+    this.totalBeds,
+    this.availableBeds,
+    this.specializations,
+    this.contactPerson,
   });
+
+  User copyWith({
+    String? id,
+    String? name,
+    String? email,
+    String? phone,
+    String? role,
+    bool? isVerified,
+    DateTime? createdAt,
+    String? avatar,
+    String? address,
+    String? gender,
+    String? dateOfBirth,
+    String? bloodGroup,
+    String? medicalConditions,
+    String? emergencyContact,
+    String? emergencyContactName,
+    String? occupation,
+    String? about,
+    String? hospitalName,
+    int? totalBeds,
+    int? availableBeds,
+    List<String>? specializations,
+    String? contactPerson,
+  }) {
+    return User(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
+      role: role ?? this.role,
+      isVerified: isVerified ?? this.isVerified,
+      createdAt: createdAt ?? this.createdAt,
+      avatar: avatar ?? this.avatar,
+      address: address ?? this.address,
+      gender: gender ?? this.gender,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+      bloodGroup: bloodGroup ?? this.bloodGroup,
+      medicalConditions: medicalConditions ?? this.medicalConditions,
+      emergencyContact: emergencyContact ?? this.emergencyContact,
+      emergencyContactName: emergencyContactName ?? this.emergencyContactName,
+      occupation: occupation ?? this.occupation,
+      about: about ?? this.about,
+      hospitalName: hospitalName ?? this.hospitalName,
+      totalBeds: totalBeds ?? this.totalBeds,
+      availableBeds: availableBeds ?? this.availableBeds,
+      specializations: specializations ?? this.specializations,
+      contactPerson: contactPerson ?? this.contactPerson,
+    );
+  }
 
   int get profileCompletion {
     final fields = [
@@ -88,6 +148,17 @@ class User {
           json['emergencyContactName'] ?? json['emergency_name'] ?? '',
       occupation: json['occupation'] ?? '',
       about: json['about'] ?? '',
+        hospitalName: json['hospitalDetails']?['hospitalName'] ?? json['hospitalName'],
+        totalBeds: json['hospitalDetails']?['totalBeds'] is int
+          ? json['hospitalDetails']['totalBeds']
+          : int.tryParse('${json['hospitalDetails']?['totalBeds'] ?? ''}'),
+        availableBeds: json['hospitalDetails']?['availableBeds'] is int
+          ? json['hospitalDetails']['availableBeds']
+          : int.tryParse('${json['hospitalDetails']?['availableBeds'] ?? ''}'),
+        specializations: (json['hospitalDetails']?['specializations'] is List)
+          ? List<String>.from(json['hospitalDetails']['specializations'])
+          : null,
+        contactPerson: json['hospitalDetails']?['contactPerson'] ?? json['contactPerson'],
     );
   }
 
@@ -110,6 +181,11 @@ class User {
       'emergencyContactName': emergencyContactName,
       'occupation': occupation,
       'about': about,
+      'hospitalName': hospitalName,
+      'totalBeds': totalBeds,
+      'availableBeds': availableBeds,
+      'specializations': specializations,
+      'contactPerson': contactPerson,
     };
   }
 }
@@ -240,7 +316,7 @@ class Notification {
 class AuthProvider extends ChangeNotifier {
   User? _user;
   bool _isLoading = false;
-  bool _isInitializing = true;
+  bool _isInitializing = false;  // Start as false - don't block on auth
   String? _error;
   String? _token;
   DateTime? _lastLoginTime;
@@ -257,32 +333,38 @@ class AuthProvider extends ChangeNotifier {
   String? get token => _token;
 
   AuthProvider() {
+    // Fire and forget - load saved login in background without blocking
     loadSavedLogin();
   }
 
   Future<void> loadSavedLogin() async {
-    _isInitializing = true;
-    notifyListeners();
+    // Don't set _isInitializing = true anymore - app should show instantly
+    // Just load in background
 
-    _token = await StorageService.getString(AppConstants.tokenKey);
-    final loginTime = await StorageService.getString(AppConstants.loginTimeKey);
+    final results = await Future.wait([
+      StorageService.getString(AppConstants.tokenKey),
+      StorageService.getString(AppConstants.loginTimeKey),
+      StorageService.getJson(AppConstants.userKey),
+    ]);
+
+    _token = results[0] as String?;
+    final loginTime = results[1] as String?;
+    final data = results[2] as Map<String, dynamic>?;
+
     if (loginTime != null) {
       _lastLoginTime = DateTime.tryParse(loginTime);
     }
 
     if (_lastLoginTime != null && isSessionExpired) {
       await logout();
-      _isInitializing = false;
       notifyListeners();
       return;
     }
 
-    final data = await StorageService.getJson(AppConstants.userKey);
     if (data != null) {
       _user = User.fromJson(data);
     }
 
-    _isInitializing = false;
     notifyListeners();
   }
 
@@ -317,17 +399,48 @@ class AuthProvider extends ChangeNotifier {
       if (resolvedUser.role == 'user' || resolvedUser.name.isEmpty) {
         try {
           final profile = await ApiService.getUserProfile(_token!);
-          resolvedUser = User(
-            id: profile.id.isNotEmpty ? profile.id : resolvedUser.id,
-            name: profile.name.isNotEmpty ? profile.name : resolvedUser.name,
-            email:
-                profile.email.isNotEmpty ? profile.email : resolvedUser.email,
-            phone:
-                profile.phone.isNotEmpty ? profile.phone : resolvedUser.phone,
-            role: profile.role.isNotEmpty ? profile.role : resolvedUser.role,
-            avatar: profile.avatar ?? resolvedUser.avatar,
-            createdAt: profile.createdAt ?? resolvedUser.createdAt,
-          );
+          if (profile is UserProfile) {
+            resolvedUser = User.fromJson({
+              '_id': profile.id,
+              'id': profile.id,
+              'name': profile.name,
+              'email': profile.email,
+              'phone': profile.phone,
+              'role': profile.role,
+              'avatar': profile.avatar,
+              'address': profile.address,
+              'gender': profile.gender,
+              'dateOfBirth': profile.dateOfBirth,
+              'bloodGroup': profile.bloodGroup,
+              'medicalConditions': profile.medicalConditions,
+              'emergencyContact': profile.emergencyContact,
+              'emergencyContactName': profile.emergencyContactName,
+              'occupation': profile.occupation,
+              'about': profile.about,
+              'createdAt': profile.createdAt?.toIso8601String(),
+            });
+          } else {
+            // ApiService.getUserProfile returns `UserProfile` — convert to `User`
+            resolvedUser = User.fromJson({
+              '_id': profile.id,
+              'id': profile.id,
+              'name': profile.name,
+              'email': profile.email,
+              'phone': profile.phone,
+              'role': profile.role,
+              'avatar': profile.avatar,
+              'address': profile.address,
+              'gender': profile.gender,
+              'dateOfBirth': profile.dateOfBirth,
+              'bloodGroup': profile.bloodGroup,
+              'medicalConditions': profile.medicalConditions,
+              'emergencyContact': profile.emergencyContact,
+              'emergencyContactName': profile.emergencyContactName,
+              'occupation': profile.occupation,
+              'about': profile.about,
+              'createdAt': profile.createdAt?.toIso8601String(),
+            });
+          }
         } catch (e) {
           debugPrint('⚠️ Profile refresh skipped after login: $e');
         }
@@ -360,25 +473,38 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       final profile = await ApiService.getUserProfile(_token!);
-      _user = User(
-        id: profile.id,
-        name: profile.name,
-        email: profile.email,
-        phone: profile.phone,
-        role: profile.role,
-        avatar: profile.avatar,
-        createdAt: profile.createdAt,
-      );
+      // ApiService.getUserProfile returns `UserProfile` — convert to our `User`
+      if (profile != null) {
+        _user = User.fromJson({
+          '_id': profile.id,
+          'id': profile.id,
+          'name': profile.name,
+          'email': profile.email,
+          'phone': profile.phone,
+          'role': profile.role,
+          'avatar': profile.avatar,
+          'address': profile.address,
+          'gender': profile.gender,
+          'dateOfBirth': profile.dateOfBirth,
+          'bloodGroup': profile.bloodGroup,
+          'medicalConditions': profile.medicalConditions,
+          'emergencyContact': profile.emergencyContact,
+          'emergencyContactName': profile.emergencyContactName,
+          'occupation': profile.occupation,
+          'about': profile.about,
+          'createdAt': profile.createdAt?.toIso8601String(),
+        });
+      }
       await StorageService.saveJson(AppConstants.userKey, _user!.toJson());
       notifyListeners();
 
       return {
-        '_id': profile.id,
-        'id': profile.id,
-        'name': profile.name,
-        'email': profile.email,
-        'phone': profile.phone,
-        'role': profile.role,
+        '_id': _user!.id,
+        'id': _user!.id,
+        'name': _user!.name,
+        'email': _user!.email,
+        'phone': _user!.phone,
+        'role': _user!.role,
       };
     } catch (e) {
       _error = e.toString();
@@ -482,6 +608,12 @@ class AuthProvider extends ChangeNotifier {
       _lastLoginTime = null;
       notifyListeners();
     }
+  }
+
+  void updateUser(User user) {
+    _user = user;
+    StorageService.saveJson(AppConstants.userKey, user.toJson());
+    notifyListeners();
   }
 }
 

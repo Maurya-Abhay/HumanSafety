@@ -15,6 +15,9 @@ import '../../core/portal_sound_service.dart';
 import '../../core/routes.dart';
 import '../../core/page_transitions.dart';
 import '../../shared/models.dart';
+import './home.dart';
+import './contacts.dart';
+import '../settings/settings.dart';
 import './notifications.dart';
 import './profile.dart';
 
@@ -385,10 +388,10 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
         currentIndex: 1,
         onTap: (index) {
           if (index == 0) {
-            Navigator.pushReplacementNamed(context, AppRoutes.userHome);
+            PageTransitions.replaceSmooth(context, const UserHomeScreen());
           }
-          if (index == 2) Navigator.pushNamed(context, AppRoutes.contacts);
-          if (index == 3) Navigator.pushNamed(context, AppRoutes.settings);
+          if (index == 2) PageTransitions.replaceSmooth(context, const ContactsScreen());
+          if (index == 3) PageTransitions.replaceSmooth(context, const SettingsScreen());
         },
         items: const [
           BottomNavItem(icon: Icons.home_rounded, label: 'Home'),

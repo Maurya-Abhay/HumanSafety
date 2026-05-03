@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../shared/widgets.dart';
 import '../../shared/models.dart';
+import '../../core/api_service.dart';
+import '../../core/constants.dart';
 import '../../core/routes.dart';
 import '../../core/storage_service.dart';
-// constants not required here
 import '../../core/theme.dart';
 
 class HospitalSettingsScreen extends StatefulWidget {
@@ -19,6 +20,7 @@ class _HospitalSettingsScreenState extends State<HospitalSettingsScreen> {
   bool _darkModeEnabled = false;
   bool _emergencyAlertsEnabled = true;
   bool _ambulanceTrackingEnabled = true;
+  bool _updatingBeds = false;
 
   @override
   void initState() {
@@ -67,7 +69,7 @@ class _HospitalSettingsScreenState extends State<HospitalSettingsScreen> {
 
     return Scaffold(
       appBar: CustomAppBar(
-        title: 'Hospital Settings',
+        title: 'Control Settings',
         showBackButton: false,
         actions: [
           IconButton(
@@ -94,8 +96,36 @@ class _HospitalSettingsScreenState extends State<HospitalSettingsScreen> {
           ),
         ),
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF0F172A), Color(0xFF1D4ED8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.settings_rounded, color: Colors.white, size: 28),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Hospital Control Center', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18)),
+                        SizedBox(height: 4),
+                        Text('Tune alerts, tracking, and display behavior from one place.', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
             _buildSectionTitle('Emergency Settings'),
             const SizedBox(height: 8),
             _buildToggleItem(
@@ -117,6 +147,36 @@ class _HospitalSettingsScreenState extends State<HospitalSettingsScreen> {
                 StorageService.saveBool('ambulanceTracking', value);
               },
               Icons.directions_car_rounded,
+            ),
+            const SizedBox(height: 16),
+            _buildSectionTitle('Hospital Capacity'),
+            const SizedBox(height: 8),
+            Consumer<AuthProvider>(
+              builder: (context, auth, _) {
+                final user = auth.user;
+                final totalBeds = user?.totalBeds ?? 0;
+                final availableBeds = user?.availableBeds ?? 0;
+                return CustomCard(
+                  backgroundColor: Colors.white,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Current beds: $availableBeds / $totalBeds', style: const TextStyle(fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 8),
+                      Text('Keep availability updated so routing stays accurate.', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        child: PrimaryButton(
+                          label: _updatingBeds ? 'Updating...' : 'Update Bed Availability',
+                          isLoading: _updatingBeds,
+                          onPressed: () => _updateBedsDialog(auth, totalBeds, availableBeds),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
             _buildToggleItem(
               'Push Notifications',
@@ -174,9 +234,8 @@ class _HospitalSettingsScreenState extends State<HospitalSettingsScreen> {
               child: ElevatedButton.icon(
                 onPressed: () async {
                   await StorageService.clear();
-                  if (!mounted) return;
-                  Navigator.pushNamedAndRemoveUntil(
-                    context,
+                  if (!context.mounted) return;
+                  Navigator.of(context).pushNamedAndRemoveUntil(
                     AppRoutes.login,
                     (route) => false,
                   );
@@ -201,14 +260,17 @@ class _HospitalSettingsScreenState extends State<HospitalSettingsScreen> {
       bottomNavigationBar: CustomBottomNav(
         currentIndex: 3, // Settings tab
         onTap: (index) {
-          if (index == 0)
+          if (index == 0) {
             Navigator.pushReplacementNamed(
                 context, AppRoutes.hospitalDashboard);
-          if (index == 1)
+          }
+          if (index == 1) {
             Navigator.pushReplacementNamed(context, AppRoutes.hospitalRequests);
-          if (index == 2)
+          }
+          if (index == 2) {
             Navigator.pushReplacementNamed(
                 context, AppRoutes.hospitalAmbulance);
+          }
           if (index == 3) return; // Current page
         },
         items: const [
@@ -219,6 +281,55 @@ class _HospitalSettingsScreenState extends State<HospitalSettingsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _updateBedsDialog(AuthProvider auth, int totalBeds, int currentBeds) async {
+    final controller = TextEditingController(text: currentBeds.toString());
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Update Bed Availability'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            labelText: 'Available beds',
+            helperText: 'Max: $totalBeds',
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, int.tryParse(controller.text.trim())), child: const Text('Save')),
+        ],
+      ),
+    );
+
+    if (confirmed == null) return;
+    if (confirmed < 0 || confirmed > totalBeds) {
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(content: Text('Enter a valid bed count')));
+      return;
+    }
+
+    try {
+      setState(() => _updatingBeds = true);
+      final token = await StorageService.getString(AppConstants.tokenKey);
+      if (token != null && token.isNotEmpty) {
+        await ApiService.updateHospitalBeds(token, confirmed);
+        final currentUser = auth.user;
+        if (currentUser != null) {
+          auth.updateUser(currentUser.copyWith(availableBeds: confirmed));
+        }
+      }
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(content: Text('Bed availability updated')));
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('Update failed: $e')));
+    } finally {
+      if (mounted) setState(() => _updatingBeds = false);
+    }
   }
 
   Widget _buildSectionTitle(String title) {
@@ -240,6 +351,7 @@ class _HospitalSettingsScreenState extends State<HospitalSettingsScreen> {
     IconData icon,
   ) {
     return CustomCard(
+      backgroundColor: Colors.white,
       child: SwitchListTile(
         title: Row(
           children: [
@@ -274,6 +386,7 @@ class _HospitalSettingsScreenState extends State<HospitalSettingsScreen> {
     VoidCallback onTap,
   ) {
     return CustomCard(
+      backgroundColor: Colors.white,
       child: ListTile(
         leading: Icon(icon, color: AppColors.primary),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),

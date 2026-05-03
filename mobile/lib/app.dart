@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'core/theme.dart';
@@ -11,7 +12,6 @@ import 'core/sensor_service.dart';
 import 'core/audio_service.dart';
 import 'core/portal_sound_service.dart';
 import 'core/sos_launch_controller.dart';
-import 'features/auth/splash.dart';
 import 'shared/models.dart';
 
 class HumanSafetyApp extends StatelessWidget {
@@ -34,13 +34,33 @@ class HumanSafetyApp extends StatelessWidget {
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {
+          final isDarkMode = themeProvider.isDarkMode;
+          final systemBarColor = isDarkMode ? const Color(0xFF15161A) : Colors.white;
+
           return MaterialApp(
             title: AppConstants.appName,
             navigatorKey: AppNavigationService.navigatorKey,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode:
-                themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+                isDarkMode ? ThemeMode.dark : ThemeMode.light,
+            builder: (context, child) {
+              return AnnotatedRegion<SystemUiOverlayStyle>(
+                value: SystemUiOverlayStyle(
+                  statusBarColor: Colors.transparent,
+                  statusBarIconBrightness:
+                      isDarkMode ? Brightness.light : Brightness.dark,
+                  statusBarBrightness:
+                      isDarkMode ? Brightness.dark : Brightness.light,
+                  systemNavigationBarColor: systemBarColor,
+                  systemNavigationBarIconBrightness:
+                      isDarkMode ? Brightness.light : Brightness.dark,
+                  systemNavigationBarDividerColor: systemBarColor,
+                  systemNavigationBarContrastEnforced: false,
+                ),
+                child: child ?? const SizedBox.shrink(),
+              );
+            },
             home: const _AppStartupWrapper(),
             routes: AppRoutes.getRoutes(),
             debugShowCheckedModeBanner: false,
@@ -80,7 +100,32 @@ class _AppStartupWrapperState extends State<_AppStartupWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    return const SplashScreen();
+    // Skip splash screen entirely - go straight to login/home based on auth state
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, _) {
+        if (authProvider.isAuthenticated) {
+          // User is logged in - show home for their role
+          final role = authProvider.user?.role ?? 'user';
+          final homeRoute = AppRoutes.getHomeRouteForRole(role);
+          
+          // Navigate to home and remove splash from stack
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            Navigator.pushReplacementNamed(context, homeRoute);
+          });
+        } else {
+          // User not authenticated - show login screen
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            Navigator.pushReplacementNamed(context, AppRoutes.login);
+          });
+        }
+
+        // Return minimal blank screen while routing
+        return const Scaffold(
+          backgroundColor: Color(0xFF0A0E21),
+          body: SizedBox.shrink(),
+        );
+      },
+    );
   }
 }
 

@@ -25,47 +25,32 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
 
-    // Main animation controller
+    // Instant: no animations, just static display then route immediately
     _mainController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 1),
       vsync: this,
     );
 
-    // Pulse controller for the "Breathing Glow" effect
     _pulseController = AnimationController(
-      duration: const Duration(seconds: 2),
+      duration: const Duration(milliseconds: 1),
       vsync: this,
-    )..repeat(reverse: true);
-
-    _scaleAnimation = Tween<double>(begin: 0.7, end: 1.0).animate(
-      CurvedAnimation(
-          parent: _mainController,
-          curve: const Interval(0.0, 0.6, curve: Curves.elasticOut)),
     );
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-          parent: _mainController,
-          curve: const Interval(0.4, 0.8, curve: Curves.easeIn)),
-    );
-
-    _slideAnimation = Tween<double>(begin: 40, end: 0).animate(
-      CurvedAnimation(
-          parent: _mainController,
-          curve: const Interval(0.4, 1.0, curve: Curves.fastOutSlowIn)),
-    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.0).animate(_mainController);
+    _fadeAnimation = Tween<double>(begin: 1.0, end: 1.0).animate(_mainController);
+    _slideAnimation = Tween<double>(begin: 0, end: 0).animate(_mainController);
 
     _mainController.forward();
 
-    // Navigation logic: wait a few seconds then route based on saved session
-    Future.delayed(const Duration(seconds: 4), () async {
+    // Navigation logic: route as fast as possible (50ms minimum visual hold).
+    Future.delayed(const Duration(milliseconds: 50), () async {
       if (!mounted) return;
       final auth = Provider.of<AuthProvider>(context, listen: false);
 
-      // If auth is still initializing, wait briefly (up to ~2s)
+      // If auth is still initializing, wait briefly (up to ~100ms)
       int tries = 0;
-      while (auth.isInitializing && tries < 10) {
-        await Future.delayed(const Duration(milliseconds: 200));
+      while (auth.isInitializing && tries < 5) {
+        await Future.delayed(const Duration(milliseconds: 20));
         tries++;
       }
 
@@ -115,9 +100,9 @@ class _SplashScreenState extends State<SplashScreen>
                           boxShadow: [
                             BoxShadow(
                               color: AppColors.primary
-                                  .withOpacity(0.3 * _pulseController.value),
-                              blurRadius: 40 + (20 * _pulseController.value),
-                              spreadRadius: 5 + (10 * _pulseController.value),
+                                  .withOpacity(0.18 * _pulseController.value),
+                              blurRadius: 24 + (10 * _pulseController.value),
+                              spreadRadius: 2 + (4 * _pulseController.value),
                             ),
                           ],
                         ),
@@ -127,7 +112,7 @@ class _SplashScreenState extends State<SplashScreen>
                   },
                 ),
 
-                const SizedBox(height: 40),
+                const SizedBox(height: 8),
 
                 // Staggered Text Animations
                 AnimatedBuilder(
@@ -152,7 +137,7 @@ class _SplashScreenState extends State<SplashScreen>
                           letterSpacing: 4,
                         ),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 6),
                       Container(
                         height: 2,
                         width: 50,
@@ -166,7 +151,7 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                         ),
                       ),
-                      const SizedBox(height: 15),
+                      const SizedBox(height: 4),
                       Text(
                         "PREMIUM PROTECTION ENGINE",
                         style: TextStyle(
@@ -200,7 +185,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   Widget _buildPremiumLogo() {
     return Container(
-      padding: const EdgeInsets.all(2),
+      padding: const EdgeInsets.all(0),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: LinearGradient(
@@ -210,14 +195,14 @@ class _SplashScreenState extends State<SplashScreen>
         ),
       ),
       child: Container(
-        padding: const EdgeInsets.all(25),
+        padding: const EdgeInsets.all(8),
         decoration: const BoxDecoration(
           color: Color(0xFF1A1F3D),
           shape: BoxShape.circle,
         ),
         child: const Icon(
           Icons.shield_rounded,
-          size: 70,
+          size: 28,
           color: Colors.white,
         ),
       ),

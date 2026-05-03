@@ -20,6 +20,7 @@ const policeRoutes = require('./routes/police.routes');
 const hospitalAdminRoutes = require('./routes/hospital_admin.routes');
 const adminRoutes = require('./routes/admin.routes');
 const caseRoutes = require('./routes/case.routes');
+const ambulanceRoutes = require('./routes/ambulance.routes');
 
 const { getRealtimeService } = require('./services/realtime_event_service');
 const FailureHandlingService = require('./services/failure_handling_service');
@@ -103,6 +104,7 @@ app.use('/api/v1/police', policeRoutes);
 app.use('/api/v1/hospital-admin', hospitalAdminRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/case', caseRoutes);
+app.use('/api/v1/ambulance', ambulanceRoutes);
 
 
 // Legacy routes (safe wrapper)
@@ -212,6 +214,37 @@ wss.on('connection', (ws, req) => {
                   longitude: msg.longitude,
                   accuracy: msg.accuracy
                 },
+                timestamp: new Date().toISOString()
+              });
+            }
+            break;
+
+          case 'ambulance_location_update':
+            // Ambulance sending real-time GPS location
+            if (msg.ambulanceId && msg.latitude && msg.longitude) {
+              realtimeService.broadcastByRole('hospital', {
+                type: 'AMBULANCE_LOCATION_UPDATE',
+                ambulanceId: msg.ambulanceId,
+                location: {
+                  latitude: msg.latitude,
+                  longitude: msg.longitude,
+                  accuracy: msg.accuracy
+                },
+                eta: msg.eta,
+                status: msg.status,
+                timestamp: new Date().toISOString()
+              });
+              // Also broadcast to admin
+              realtimeService.broadcastByRole('admin', {
+                type: 'AMBULANCE_LOCATION_UPDATE',
+                ambulanceId: msg.ambulanceId,
+                location: {
+                  latitude: msg.latitude,
+                  longitude: msg.longitude,
+                  accuracy: msg.accuracy
+                },
+                eta: msg.eta,
+                status: msg.status,
                 timestamp: new Date().toISOString()
               });
             }

@@ -218,6 +218,46 @@ const updateBedAvailability = async (req, res) => {
   }
 };
 
+// Hospital updates its profile (name, phone, address, specializations, etc.)
+const updateHospitalProfile = async (req, res) => {
+  try {
+    const { hospitalName, phone, address, specializations, contactPerson } = req.body;
+
+    const hospital = await User.findById(req.user._id);
+    if (!hospital || hospital.role !== 'hospital') {
+      return res.status(403).json({ message: 'Only hospital accounts can update profile' });
+    }
+
+    // Update allowed fields
+    if (hospitalName) hospital.hospitalDetails.hospitalName = hospitalName;
+    if (phone) hospital.phone = phone;
+    if (address) hospital.hospitalDetails.location.address = address;
+    if (specializations && Array.isArray(specializations)) {
+      hospital.hospitalDetails.specializations = specializations;
+    }
+    if (contactPerson) hospital.hospitalDetails.contactPerson = contactPerson;
+    if (hospitalName) hospital.name = hospitalName; // Keep name in sync
+
+    await hospital.save();
+
+    res.status(200).json({
+      message: 'Hospital profile updated',
+      hospital: {
+        id: hospital._id,
+        name: hospital.hospitalDetails.hospitalName,
+        phone: hospital.phone,
+        address: hospital.hospitalDetails.location.address,
+        specializations: hospital.hospitalDetails.specializations,
+        contactPerson: hospital.hospitalDetails.contactPerson,
+        totalBeds: hospital.hospitalDetails.totalBeds,
+        availableBeds: hospital.hospitalDetails.availableBeds,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Profile update failed', error: error.message });
+  }
+};
+
 module.exports = {
   requestHospitalAccount,
   getPendingHospitalRequests,
@@ -225,4 +265,5 @@ module.exports = {
   rejectHospitalRequest,
   getAllActiveHospitals,
   updateBedAvailability,
+  updateHospitalProfile,
 };
