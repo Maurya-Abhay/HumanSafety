@@ -109,8 +109,24 @@ userSchema.pre('save', async function (next) {
 
 // 🔑 COMPARE PASSWORD
 userSchema.methods.comparePassword = async function (password) {
-  return bcrypt.compare(password, this.password);
-};
+  if (!this.password) {
+    return false;
+  }
 
+  const bcryptHashPattern = /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/;
+  const isHashed = bcryptHashPattern.test(this.password);
+
+  if (isHashed) {
+    return bcrypt.compare(password, this.password);
+  }
+
+  // Fallback for legacy/plaintext password storage
+  const isMatch = password === this.password;
+  if (isMatch) {
+    this.password = await bcrypt.hash(password, 10);
+    await this.save();
+  }
+  return isMatch;
+};
 
 module.exports = mongoose.model('User', userSchema);

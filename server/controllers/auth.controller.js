@@ -107,6 +107,7 @@ const loginWithPassword = async (req, res) => {
     const isMatch = await user.comparePassword(password);
 
     if (!isMatch) {
+      console.warn(`LOGIN_INVALID_PASSWORD: phone=${phone} passwordMatch=${isMatch} passwordExists=${!!user.password}`);
       return res.apiError('Invalid password', null, 401, 'INVALID_PASSWORD');
     }
 
