@@ -1,5 +1,5 @@
 const express = require('express');
-const { getProfile, updateProfile, updateLocation, getLocation, applyRole } = require('../controllers/user.controller');
+const { getProfile, updateProfile, updateLocation, getLocation, applyRole, getRoleApplicationStatus } = require('../controllers/user.controller');
 const { verifyToken } = require('../middleware/auth.middleware');
 const { validateUserUpdate, validateLocationUpdate } = require('../middleware/validation.middleware');
 
