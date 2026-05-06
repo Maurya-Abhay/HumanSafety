@@ -1,15 +1,18 @@
 // Real-Time Event Streaming Service
-// Uses WebSocket for native, polling for web, with Redis for scaling
+// Uses WebSocket for native connections with event broadcasting, rooms, and offline queueing
 
 const EventEmitter = require('events');
 
 class RealtimeEventService extends EventEmitter {
   constructor() {
     super();
-    this.wsClients = new Map(); // userId -> WebSocket connections
-    this.redisConnections = new Map(); // For scaling (TODO: integrate Redis)
-    this.eventQueue = [];
+    this.wsClients = new Map(); // userId -> Array<{ws, role, connectedAt, isAlive}>
+    this.rooms = new Map(); // roomId -> Set<userId> (for group messaging)
+    this.userRooms = new Map(); // userId -> Set<roomId>
+    this.eventQueue = []; // For offline messages
+    this.eventHistory = []; // For debugging
     this.MAX_QUEUE_SIZE = 10000;
+    this.MAX_HISTORY_SIZE = 1000;
   }
 
   // ============================================================
@@ -107,6 +110,84 @@ class RealtimeEventService extends EventEmitter {
       total += clients.length;
     });
     return total;
+  }
+
+  // ============================================================
+  // ROOM MANAGEMENT (For grouped messaging)
+  // ============================================================
+
+  /**
+   * Create or join room (e.g., per-emergency room, per-police-station)
+   */
+  joinRoom(roomId, userId) {
+    if (!this.rooms.has(roomId)) {
+      this.rooms.set(roomId, new Set());
+    }
+    this.rooms.get(roomId).add(userId);
+
+    if (!this.userRooms.has(userId)) {
+      this.userRooms.set(userId, new Set());
+    }
+    this.userRooms.get(userId).add(roomId);
+
+    console.log(`👥 User ${userId} joined room ${roomId}`);
+    console.log(`   Room size: ${this.rooms.get(roomId).size}`);
+  }
+
+  /**
+   * Leave room
+   */
+  leaveRoom(roomId, userId) {
+    if (!this.rooms.has(roomId)) return;
+
+    this.rooms.get(roomId).delete(userId);
+    if (this.userRooms.has(userId)) {
+      this.userRooms.get(userId).delete(roomId);
+    }
+
+    // Delete empty room
+    if (this.rooms.get(roomId).size === 0) {
+      this.rooms.delete(roomId);
+      console.log(`🗑️  Room ${roomId} deleted (empty)`);
+    } else {
+      console.log(`👤 User ${userId} left room ${roomId}`);
+    }
+  }
+
+  /**
+   * Send event to entire room
+   */
+  broadcastToRoom(roomId, event, senderUserId = null) {
+    if (!this.rooms.has(roomId)) return;
+
+    const roomUsers = this.rooms.get(roomId);
+    const payload = JSON.stringify(event);
+    let count = 0;
+
+    roomUsers.forEach(userId => {
+      // Optionally skip sender
+      if (senderUserId && userId === senderUserId) return;
+
+      if (this.wsClients.has(userId)) {
+        const clients = this.wsClients.get(userId);
+        clients.forEach(client => {
+          if (client.ws.readyState === 1) { // OPEN
+            client.ws.send(payload);
+            count++;
+          }
+        });
+      }
+    });
+
+    this.recordEvent({
+      type: 'ROOM_BROADCAST',
+      roomId,
+      userCount: roomUsers.size,
+      eventsSent: count,
+      event,
+    });
+
+    console.log(`📢 Room '${roomId}' broadcast: ${count} messages sent`);
   }
 
   // ============================================================
@@ -337,6 +418,60 @@ class RealtimeEventService extends EventEmitter {
     this.eventQueue = this.eventQueue.filter(e => e.userId !== userId);
 
     console.log(`📤 Flushed ${userEvents.length} events to ${userId}`);
+  }
+
+  // ============================================================
+  // EVENT HISTORY & RECORDING (For debugging/analytics)
+  // ============================================================
+
+  /**
+   * Record event to history
+   */
+  recordEvent(event) {
+    if (this.eventHistory.length >= this.MAX_HISTORY_SIZE) {
+      this.eventHistory.shift();
+    }
+
+    this.eventHistory.push({
+      ...event,
+      recordedAt: new Date(),
+    });
+  }
+
+  /**
+   * Get event history (for debugging)
+   */
+  getEventHistory(limit = 100) {
+    return this.eventHistory.slice(-limit);
+  }
+
+  /**
+   * Get room members
+   */
+  getRoomMembers(roomId) {
+    if (!this.rooms.has(roomId)) return [];
+    return Array.from(this.rooms.get(roomId));
+  }
+
+  /**
+   * Get user's rooms
+   */
+  getUserRooms(userId) {
+    if (!this.userRooms.has(userId)) return [];
+    return Array.from(this.userRooms.get(userId));
+  }
+
+  /**
+   * Get connection stats
+   */
+  getConnectionStats() {
+    return {
+      totalConnections: this.getTotalConnections(),
+      uniqueUsers: this.wsClients.size,
+      totalRooms: this.rooms.size,
+      queuedEvents: this.eventQueue.length,
+      eventHistorySize: this.eventHistory.length,
+    };
   }
 
   // ============================================================

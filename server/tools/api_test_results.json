@@ -1,0 +1,1054 @@
+[
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/login",
+    "url": "http://localhost:5000/api/v1/auth/login",
+    "result": {
+      "ok": false,
+      "status": 400,
+      "body": {
+        "success": false,
+        "message": "Phone and password are required",
+        "error": {
+          "code": "VALIDATION_FAILED",
+          "details": null
+        },
+        "requestId": "REQ-1777899114894-d2e8cdbd8bh",
+        "timestamp": "2026-05-04T12:51:54.894Z"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/signup",
+    "url": "http://localhost:5000/api/v1/auth/signup",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many login attempts, please try again later."
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/send-otp",
+    "url": "http://localhost:5000/api/v1/auth/send-otp",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many login attempts, please try again later."
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/verify-otp",
+    "url": "http://localhost:5000/api/v1/auth/verify-otp",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many login attempts, please try again later."
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/refresh-token",
+    "url": "http://localhost:5000/api/v1/auth/refresh-token",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many login attempts, please try again later."
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/logout",
+    "url": "http://localhost:5000/api/v1/auth/logout",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many login attempts, please try again later."
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/user/profile",
+    "url": "http://localhost:5000/api/v1/user/profile",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/user/profile",
+    "url": "http://localhost:5000/api/v1/user/profile",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/user/update",
+    "url": "http://localhost:5000/api/v1/user/update",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/user/location",
+    "url": "http://localhost:5000/api/v1/user/location",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/user/location",
+    "url": "http://localhost:5000/api/v1/user/location",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/user/role-application",
+    "url": "http://localhost:5000/api/v1/user/role-application",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/contact/add",
+    "url": "http://localhost:5000/api/v1/contact/add",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/contact/list",
+    "url": "http://localhost:5000/api/v1/contact/list",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/contact/remove/:contactId",
+    "url": "http://localhost:5000/api/v1/contact/remove/testid",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/emergency/panic",
+    "url": "http://localhost:5000/api/v1/emergency/panic",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/emergency/alerts",
+    "url": "http://localhost:5000/api/v1/emergency/alerts",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/emergency/alerts/:alertId",
+    "url": "http://localhost:5000/api/v1/emergency/alerts/testid",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/help/request",
+    "url": "http://localhost:5000/api/v1/help/request",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/help/accept",
+    "url": "http://localhost:5000/api/v1/help/accept",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/help/reject",
+    "url": "http://localhost:5000/api/v1/help/reject",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/help/complete",
+    "url": "http://localhost:5000/api/v1/help/complete",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/hospital/request",
+    "url": "http://localhost:5000/api/v1/hospital/request",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/hospital/nearby",
+    "url": "http://localhost:5000/api/v1/hospital/nearby",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/hospital/alerts",
+    "url": "http://localhost:5000/api/v1/hospital/alerts",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/hospital/alerts/:alertId/accept",
+    "url": "http://localhost:5000/api/v1/hospital/alerts/testid/accept",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/hospital/alerts/:alertId/reject",
+    "url": "http://localhost:5000/api/v1/hospital/alerts/testid/reject",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/hospital/alerts/:alertId/status",
+    "url": "http://localhost:5000/api/v1/hospital/alerts/testid/status",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/accident/analyze",
+    "url": "http://localhost:5000/api/v1/accident/analyze",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/settings/",
+    "url": "http://localhost:5000/api/v1/settings/",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/settings/update",
+    "url": "http://localhost:5000/api/v1/settings/update",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/police/register",
+    "url": "http://localhost:5000/api/v1/police/register",
+    "result": {
+      "ok": false,
+      "status": 400,
+      "body": {
+        "success": false,
+        "message": "Missing required fields: phone, name, stationName, badgeNumber, idProof"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/police/officers",
+    "url": "http://localhost:5000/api/v1/police/officers",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/police/alerts",
+    "url": "http://localhost:5000/api/v1/police/alerts",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/police/cases/:caseId/accept",
+    "url": "http://localhost:5000/api/v1/police/cases/testid/accept",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/police/cases/:caseId/update",
+    "url": "http://localhost:5000/api/v1/police/cases/testid/update",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/police/pending",
+    "url": "http://localhost:5000/api/v1/police/pending",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/police/approve/:userId",
+    "url": "http://localhost:5000/api/v1/police/approve/testid",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/police/reject/:userId",
+    "url": "http://localhost:5000/api/v1/police/reject/testid",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/hospital-admin/register",
+    "url": "http://localhost:5000/api/v1/hospital-admin/register",
+    "result": {
+      "ok": false,
+      "status": 400,
+      "body": {
+        "message": "Missing required fields: phone, contactPerson, hospitalName, licenseProof, address"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/hospital-admin/active",
+    "url": "http://localhost:5000/api/v1/hospital-admin/active",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/hospital-admin/update-beds",
+    "url": "http://localhost:5000/api/v1/hospital-admin/update-beds",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/hospital-admin/profile",
+    "url": "http://localhost:5000/api/v1/hospital-admin/profile",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/hospital-admin/pending",
+    "url": "http://localhost:5000/api/v1/hospital-admin/pending",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/hospital-admin/approve/:hospitalId",
+    "url": "http://localhost:5000/api/v1/hospital-admin/approve/testid",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/hospital-admin/reject/:hospitalId",
+    "url": "http://localhost:5000/api/v1/hospital-admin/reject/testid",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/dashboard",
+    "url": "http://localhost:5000/api/v1/admin/dashboard",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/analytics",
+    "url": "http://localhost:5000/api/v1/admin/analytics",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/cases",
+    "url": "http://localhost:5000/api/v1/admin/cases",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/users",
+    "url": "http://localhost:5000/api/v1/admin/users",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/users/:userId",
+    "url": "http://localhost:5000/api/v1/admin/users/testid",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/users/:userId/block",
+    "url": "http://localhost:5000/api/v1/admin/users/testid/block",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/users/:userId/unblock",
+    "url": "http://localhost:5000/api/v1/admin/users/testid/unblock",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/users/:userId/notes",
+    "url": "http://localhost:5000/api/v1/admin/users/testid/notes",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/requests",
+    "url": "http://localhost:5000/api/v1/admin/requests",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/role-applications",
+    "url": "http://localhost:5000/api/v1/admin/role-applications",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/role-applications/:appId/approve",
+    "url": "http://localhost:5000/api/v1/admin/role-applications/testid/approve",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/role-applications/:appId/reject",
+    "url": "http://localhost:5000/api/v1/admin/role-applications/testid/reject",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/case/",
+    "url": "http://localhost:5000/api/v1/case/",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/case/:caseId",
+    "url": "http://localhost:5000/api/v1/case/testid",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/case/assigned",
+    "url": "http://localhost:5000/api/v1/case/assigned",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/case/:caseId/accept",
+    "url": "http://localhost:5000/api/v1/case/testid/accept",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/case/:caseId/reject",
+    "url": "http://localhost:5000/api/v1/case/testid/reject",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/case/:caseId/status",
+    "url": "http://localhost:5000/api/v1/case/testid/status",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/case/:caseId/attachments",
+    "url": "http://localhost:5000/api/v1/case/testid/attachments",
+    "result": {
+      "ok": false,
+      "status": 401,
+      "body": {
+        "message": "No token provided"
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/case/:caseId/attachments/:attachmentId",
+    "url": "http://localhost:5000/api/v1/case/testid/attachments/testid",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many requests from this IP, please try again later."
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/case/:caseId/evidence",
+    "url": "http://localhost:5000/api/v1/case/testid/evidence",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many requests from this IP, please try again later."
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/case/:caseId/evidence/:evidenceId",
+    "url": "http://localhost:5000/api/v1/case/testid/evidence/testid",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many requests from this IP, please try again later."
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/case/pending",
+    "url": "http://localhost:5000/api/v1/case/pending",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many requests from this IP, please try again later."
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/case/assign",
+    "url": "http://localhost:5000/api/v1/case/assign",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many requests from this IP, please try again later."
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/case/:caseId/resolve",
+    "url": "http://localhost:5000/api/v1/case/testid/resolve",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many requests from this IP, please try again later."
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/ai/profile",
+    "url": "http://localhost:5000/api/v1/ai/profile",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many requests from this IP, please try again later."
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/ai/profile/:userId",
+    "url": "http://localhost:5000/api/v1/ai/profile/testid",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many requests from this IP, please try again later."
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/ai/behavior-history",
+    "url": "http://localhost:5000/api/v1/ai/behavior-history",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many requests from this IP, please try again later."
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/ai/model-state",
+    "url": "http://localhost:5000/api/v1/ai/model-state",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many requests from this IP, please try again later."
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/ai/model-state/:modelName",
+    "url": "http://localhost:5000/api/v1/ai/model-state/testid",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many requests from this IP, please try again later."
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/ai/prediction",
+    "url": "http://localhost:5000/api/v1/ai/prediction",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many requests from this IP, please try again later."
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/ai/prediction-history/:userId",
+    "url": "http://localhost:5000/api/v1/ai/prediction-history/testid",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many requests from this IP, please try again later."
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/ai/analytics",
+    "url": "http://localhost:5000/api/v1/ai/analytics",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many requests from this IP, please try again later."
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/health/",
+    "url": "http://localhost:5000/health/",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many requests from this IP, please try again later."
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/health/db",
+    "url": "http://localhost:5000/health/db",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many requests from this IP, please try again later."
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/health/cache",
+    "url": "http://localhost:5000/health/cache",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many requests from this IP, please try again later."
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/health/websocket",
+    "url": "http://localhost:5000/health/websocket",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many requests from this IP, please try again later."
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/health/ambulances",
+    "url": "http://localhost:5000/health/ambulances",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many requests from this IP, please try again later."
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/health/services",
+    "url": "http://localhost:5000/health/services",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many requests from this IP, please try again later."
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/health/ready",
+    "url": "http://localhost:5000/health/ready",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many requests from this IP, please try again later."
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/health/alive",
+    "url": "http://localhost:5000/health/alive",
+    "result": {
+      "ok": false,
+      "status": 429,
+      "body": {
+        "text": "Too many requests from this IP, please try again later."
+      }
+    }
+  }
+]

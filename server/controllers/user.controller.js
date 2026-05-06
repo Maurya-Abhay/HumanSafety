@@ -4,38 +4,32 @@ const getProfile = async (req, res) => {
   try {
     const userId = req.user._id || req.user.userId;
     const user = await User.findById(userId).populate('emergencyContacts');
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user) return res.apiError('User not found', null, 404, 'USER_NOT_FOUND');
     
-    // Calculate profile completion - only require name and email as basic details
     const hasName = user.name && user.name.length > 0;
     const hasEmail = user.email && user.email.length > 0;
-    
-    // Profile is 100% complete if name and email are filled
     const profileCompleted = hasName && hasEmail;
     const profileCompletionPercentage = profileCompleted ? 100 : 0;
     
-    res.status(200).json({
-      message: 'Profile retrieved',
-      user: {
-        id: user._id,
-        phone: user.phone,
-        name: user.name,
-        email: user.email,
-        bloodType: user.bloodType,
-        allergies: user.allergies,
-        location: user.currentLocation,
-        role: user.role,
-        status: user.status,
-        memberSince: user.createdAt,
-        lastLogin: user.lastLogin,
-        profileCompleted,
-        profileCompletionPercentage,
-        emergencyContactsCount: user.emergencyContacts ? user.emergencyContacts.length : 0,
-        roleStatus: user.role === 'user' ? 'user' : 'verified'
-      },
-    });
+    return res.apiSuccess({
+      id: user._id,
+      phone: user.phone,
+      name: user.name,
+      email: user.email,
+      bloodType: user.bloodType,
+      allergies: user.allergies,
+      location: user.currentLocation,
+      role: user.role,
+      status: user.status,
+      memberSince: user.createdAt,
+      lastLogin: user.lastLogin,
+      profileCompleted,
+      profileCompletionPercentage,
+      emergencyContactsCount: user.emergencyContacts ? user.emergencyContacts.length : 0,
+      roleStatus: user.role === 'user' ? 'user' : 'verified'
+    }, 'Profile retrieved successfully', 200);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch profile', error: error.message });
+    return res.apiError('Failed to fetch profile', error, 500, 'PROFILE_FETCH_FAILED');
   }
 };
 
@@ -49,21 +43,18 @@ const updateProfile = async (req, res) => {
       { new: true }
     );
     
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user) return res.apiError('User not found', null, 404, 'USER_NOT_FOUND');
     
-    res.status(200).json({
-      message: 'Profile updated',
-      user: {
-        id: user._id,
-        phone: user.phone,
-        name: user.name,
-        email: user.email,
-        bloodType: user.bloodType,
-        allergies: user.allergies,
-      },
-    });
+    return res.apiSuccess({
+      id: user._id,
+      phone: user.phone,
+      name: user.name,
+      email: user.email,
+      bloodType: user.bloodType,
+      allergies: user.allergies,
+    }, 'Profile updated successfully', 200);
   } catch (error) {
-    res.status(500).json({ message: 'Update failed', error: error.message });
+    return res.apiError('Failed to update profile', error, 500, 'PROFILE_UPDATE_FAILED');
   }
 };
 
@@ -81,14 +72,15 @@ const updateLocation = async (req, res) => {
       { new: true }
     );
     
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user) return res.apiError('User not found', null, 404, 'USER_NOT_FOUND');
     
-    res.status(200).json({
-      message: 'Location updated',
-      location: user.currentLocation,
-    });
+    return res.apiSuccess(
+      { location: user.currentLocation },
+      'Location updated successfully',
+      200
+    );
   } catch (error) {
-    res.status(500).json({ message: 'Location update failed', error: error.message });
+    return res.apiError('Failed to update location', error, 500, 'LOCATION_UPDATE_FAILED');
   }
 };
 
@@ -96,14 +88,15 @@ const getLocation = async (req, res) => {
   try {
     const userId = req.user._id || req.user.userId;
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user) return res.apiError('User not found', null, 404, 'USER_NOT_FOUND');
     
-    res.status(200).json({
-      message: 'Location retrieved',
-      location: user.currentLocation,
-    });
+    return res.apiSuccess(
+      { location: user.currentLocation },
+      'Location retrieved successfully',
+      200
+    );
   } catch (error) {
-    res.status(500).json({ message: 'Failed to get location', error: error.message });
+    return res.apiError('Failed to get location', error, 500, 'LOCATION_FETCH_FAILED');
   }
 };
 
@@ -113,7 +106,7 @@ const applyRole = async (req, res) => {
     const userId = req.user._id || req.user.userId;
     
     if (!role || !['police', 'hospital', 'admin'].includes(role)) {
-      return res.status(400).json({ message: 'Invalid role' });
+      return res.apiError('Invalid role. Must be police, hospital, or admin', null, 400, 'INVALID_ROLE');
     }
     
     const user = await User.findByIdAndUpdate(
@@ -127,15 +120,14 @@ const applyRole = async (req, res) => {
       { new: true }
     );
     
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user) return res.apiError('User not found', null, 404, 'USER_NOT_FOUND');
     
-    res.status(200).json({
-      message: 'Role application submitted',
+    return res.apiSuccess({
       roleStatus: user.roleStatus,
       appliedRole: user.pendingRole
-    });
+    }, 'Role application submitted successfully', 200);
   } catch (error) {
-    res.status(500).json({ message: 'Role application failed', error: error.message });
+    return res.apiError('Failed to apply for role', error, 500, 'ROLE_APPLICATION_FAILED');
   }
 };
 

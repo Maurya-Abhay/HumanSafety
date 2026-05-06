@@ -7,6 +7,7 @@ import 'package:web_socket_channel/status.dart' as status;
 import 'package:flutter/foundation.dart';
 import 'constants.dart';
 import 'storage_service.dart';
+import '../shared/models.dart';
 
 class ApiService {
   static final baseUrl = AppConstants.baseUrl;
@@ -541,36 +542,7 @@ class ApiService {
     }
   }
 
-  static Future<void> updateAmbulanceLocation(String token, double latitude, double longitude, String? address) async {
-    try {
-      final dio = NetworkClient().client;
-      final resp = await dio.put(
-        '/api/v1/ambulance/location',
-        data: {
-          'latitude': latitude,
-          'longitude': longitude,
-          'address': address,
-        },
-      );
-      if (resp.statusCode == null || resp.statusCode! < 200 || resp.statusCode! >= 300) {
-        throw ApiException('Failed to update ambulance location', resp.statusCode ?? 0);
-      }
-    } catch (e) {
-      throw ApiException('Failed to update ambulance location: ${e.toString()}', 0);
-    }
-  }
-
-  static Future<void> markAmbulanceArrived(String token, String ambulanceId) async {
-    try {
-      final dio = NetworkClient().client;
-      final resp = await dio.put('/api/v1/ambulance/$ambulanceId/arrived');
-      if (resp.statusCode == null || resp.statusCode! < 200 || resp.statusCode! >= 300) {
-        throw ApiException('Failed to mark ambulance as arrived', resp.statusCode ?? 0);
-      }
-    } catch (e) {
-      throw ApiException('Failed to mark ambulance as arrived: ${e.toString()}', 0);
-    }
-  }
+  // Old ambulance methods removed - using updated ones below
 
   // ============ ADMIN ENDPOINTS ============
 
@@ -747,6 +719,109 @@ class ApiService {
       return _handleResponse(resp, (json) => RoleApplicationStatus.fromJson(json));
     } catch (e) {
       throw ApiException('Failed to fetch role application status: ${e.toString()}', 0);
+    }
+  }
+
+  // ============ AMBULANCE ENDPOINTS ============
+
+  static Future<List<AmbulanceAssignment>> getAmbulanceAssignments() async {
+    try {
+      final dio = NetworkClient().client;
+      final resp = await dio.get('/api/v1/ambulance/assignments');
+      if (resp.statusCode == 200) {
+        final data = resp.data is String ? jsonDecode(resp.data) : resp.data;
+        final list = (data['data'] ?? data['assignments'] ?? []) as List;
+        return list.map((item) => AmbulanceAssignment.fromJson(item as Map<String, dynamic>)).toList();
+      }
+      return [];
+    } catch (e) {
+      throw ApiException('Failed to fetch ambulance assignments: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<bool> acceptAmbulanceAssignment(String assignmentId, int eta) async {
+    try {
+      final dio = NetworkClient().client;
+      final resp = await dio.put('/api/v1/ambulance/$assignmentId/accept', data: {'eta': eta});
+      return resp.statusCode == 200;
+    } catch (e) {
+      throw ApiException('Failed to accept assignment: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<bool> updateAmbulanceOnlineStatus(bool isOnline) async {
+    try {
+      final dio = NetworkClient().client;
+      final resp = await dio.put('/api/v1/ambulance/status', data: {'isOnline': isOnline});
+      return resp.statusCode == 200;
+    } catch (e) {
+      throw ApiException('Failed to update online status: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<bool> updateAmbulanceLocation(double latitude, double longitude, String? address) async {
+    try {
+      final dio = NetworkClient().client;
+      await dio.put('/api/v1/ambulance/location', data: {
+        'latitude': latitude,
+        'longitude': longitude,
+        'address': address,
+      });
+      return true;
+    } catch (e) {
+      throw ApiException('Failed to update ambulance location: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<bool> markAmbulanceArrived(String assignmentId) async {
+    try {
+      final dio = NetworkClient().client;
+      final resp = await dio.put('/api/v1/ambulance/$assignmentId/arrived');
+      return resp.statusCode == 200;
+    } catch (e) {
+      throw ApiException('Failed to mark arrived: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<bool> completeAmbulanceAssignment(String assignmentId, String patientCondition, String treatmentGiven) async {
+    try {
+      final dio = NetworkClient().client;
+      final resp = await dio.put('/api/v1/ambulance/$assignmentId/completed', data: {
+        'patientCondition': patientCondition,
+        'treatmentGiven': treatmentGiven,
+      });
+      return resp.statusCode == 200;
+    } catch (e) {
+      throw ApiException('Failed to complete assignment: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<List<AmbulanceAssignment>> getAmbulanceTripHistory() async {
+    try {
+      final dio = NetworkClient().client;
+      final resp = await dio.get('/api/v1/ambulance/history');
+      if (resp.statusCode == 200) {
+        final data = resp.data is String ? jsonDecode(resp.data) : resp.data;
+        final list = (data['data'] ?? data['history'] ?? []) as List;
+        return list.map((item) => AmbulanceAssignment.fromJson(item as Map<String, dynamic>)).toList();
+      }
+      return [];
+    } catch (e) {
+      throw ApiException('Failed to fetch trip history: ${e.toString()}', 0);
+    }
+  }
+
+  static Future<Map<String, dynamic>> getAmbulanceStats() async {
+    try {
+      final dio = NetworkClient().client;
+      final resp = await dio.get('/api/v1/ambulance/stats');
+      if (resp.statusCode == 200) {
+        final data = resp.data is String ? jsonDecode(resp.data) : resp.data;
+        return (data['stats'] ?? data) as Map<String, dynamic>;
+      }
+      return {};
+    } catch (e) {
+      throw ApiException('Failed to fetch ambulance stats: ${e.toString()}', 0);
     }
   }
 

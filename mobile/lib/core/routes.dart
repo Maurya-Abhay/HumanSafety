@@ -31,6 +31,16 @@ import '../features/hospital/profile.dart' as hospital_profile;
 import '../features/hospital/notifications.dart' as hospital_notifications;
 import '../features/hospital/settings.dart' as hospital_settings;
 
+/// AMBULANCE
+import '../features/ambulance/home.dart';
+import '../features/ambulance/requests.dart';
+import '../features/ambulance/navigation.dart';
+import '../features/ambulance/current_case.dart';
+import '../features/ambulance/history.dart';
+import '../features/ambulance/notifications.dart' as ambulance_notifications;
+import '../features/ambulance/profile.dart' as ambulance_profile;
+import '../features/ambulance/settings.dart' as ambulance_settings;
+
 /// POLICE
 import '../features/police/dashboard.dart' as police_dashboard;
 import '../features/police/alerts.dart' show AlertsScreen;
@@ -96,8 +106,20 @@ class AppRoutes {
   static const String about = '/about';
   static const String help = '/help';
 
+  /// AMBULANCE
+  static const String ambulanceHome = '/ambulance/home';
+  static const String ambulanceRequests = '/ambulance/requests';
+  static const String ambulanceNavigation = '/ambulance/navigation';
+  static const String ambulanceCurrentCase = '/ambulance/current-case';
+  static const String ambulanceHistory = '/ambulance/history';
+  static const String ambulanceNotifications = '/ambulance/notifications';
+  static const String ambulanceProfile = '/ambulance/profile';
+  static const String ambulanceSettings = '/ambulance/settings';
+
   static String getHomeRouteForRole(String role) {
     switch (role) {
+      case 'ambulance':
+        return ambulanceHome;
       case 'police':
         return policeDashboard;
       case 'hospital':
@@ -146,6 +168,16 @@ class AppRoutes {
       hospitalNotifications: (_) =>
           const hospital_notifications.HospitalNotificationsScreen(),
       hospitalSettings: (_) => const hospital_settings.HospitalSettingsScreen(),
+
+        /// AMBULANCE
+        ambulanceHome: (_) => const AmbulanceHomeScreen(),
+        ambulanceRequests: (_) => const AmbulanceRequestsScreen(),
+        ambulanceNavigation: (_) => const AmbulanceNavigationScreen(),
+        ambulanceCurrentCase: (_) => const AmbulanceCurrentCaseScreen(),
+        ambulanceHistory: (_) => const AmbulanceHistoryScreen(),
+        ambulanceNotifications: (_) => const ambulance_notifications.AmbulanceNotificationsScreen(),
+        ambulanceProfile: (_) => const ambulance_profile.AmbulanceProfileScreen(),
+        ambulanceSettings: (_) => const ambulance_settings.AmbulanceSettingsScreen(),
 
       /// POLICE
       policeDashboard: (_) => const police_dashboard.DashboardScreen(),

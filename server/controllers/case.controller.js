@@ -358,6 +358,311 @@ const deleteEvidence = async (req, res) => {
   }
 };
 
+// Generate FIR for case (Police)
+const generateFIR = async (req, res) => {
+  try {
+    const { caseId } = req.params;
+    const { firstInformationReport, witnessNames, vehicleNumbers } = req.body;
+
+    const caseDoc = await Alert.findById(caseId);
+    if (!caseDoc) {
+      return res.status(404).json({ message: 'Case not found' });
+    }
+
+    if (caseDoc.assignedPolice?.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to generate FIR' });
+    }
+
+    const fir = {
+      generatedBy: req.user._id,
+      generatedAt: new Date(),
+      firNumber: `FIR-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+      description: firstInformationReport || '',
+      witnessNames: witnessNames || [],
+      vehicleNumbers: vehicleNumbers || [],
+      caseId: caseId,
+      status: 'active',
+    };
+
+    caseDoc.firDetails = fir;
+    caseDoc.auditTrail = caseDoc.auditTrail || [];
+    caseDoc.auditTrail.push({ 
+      action: 'FIR_GENERATED', 
+      actor: req.user._id, 
+      timestamp: new Date(), 
+      details: fir.firNumber 
+    });
+    await caseDoc.save();
+
+    res.status(201).json({
+      message: 'FIR generated successfully',
+      fir,
+      caseId: caseDoc._id,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'FIR generation failed', error: error.message });
+  }
+};
+
+// Search cases with filters (Police/Admin)
+const searchCases = async (req, res) => {
+  try {
+    const { status, location, type, startDate, endDate, assignedPolice } = req.query;
+    const filters = {};
+
+    if (status) filters.status = status;
+    if (type) filters.type = type;
+    if (assignedPolice) filters.assignedPolice = assignedPolice;
+
+    if (startDate || endDate) {
+      filters.createdAt = {};
+      if (startDate) filters.createdAt.$gte = new Date(startDate);
+      if (endDate) filters.createdAt.$lte = new Date(endDate);
+    }
+
+    // Location-based search (simple distance check - you'd use geospatial for production)
+    let cases = await Alert.find(filters)
+      .populate('userId', 'name phone')
+      .populate('assignedPolice', 'name phone policeDetails')
+      .sort({ createdAt: -1 })
+      .limit(100);
+
+    if (location) {
+      const { latitude, longitude, radius = 5 } = location; // radius in km
+      cases = cases.filter(c => {
+        const distance = Math.sqrt(
+          Math.pow(c.location.latitude - latitude, 2) +
+          Math.pow(c.location.longitude - longitude, 2)
+        ) * 111; // rough km conversion
+        return distance <= radius;
+      });
+    }
+
+    res.status(200).json({
+      count: cases.length,
+      cases,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Search failed', error: error.message });
+  }
+};
+
+// Get case statistics (Admin/Police)
+const getCaseStatistics = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    let dateFilter = {};
+    if (startDate || endDate) {
+      dateFilter.createdAt = {};
+      if (startDate) dateFilter.createdAt.$gte = new Date(startDate);
+      if (endDate) dateFilter.createdAt.$lte = new Date(endDate);
+    }
+
+    const totalCases = await Alert.countDocuments(dateFilter);
+    const resolvedCases = await Alert.countDocuments({
+      ...dateFilter,
+      status: 'resolved',
+    });
+    const pendingCases = await Alert.countDocuments({
+      ...dateFilter,
+      status: 'pending',
+    });
+    const inProgressCases = await Alert.countDocuments({
+      ...dateFilter,
+      status: 'in-progress',
+    });
+
+    const avgResolutionTime = await Alert.aggregate([
+      { $match: { ...dateFilter, status: 'resolved' } },
+      {
+        $group: {
+          _id: null,
+          avgTime: {
+            $avg: {
+              $subtract: ['$resolvedAt', '$createdAt'],
+            },
+          },
+        },
+      },
+    ]);
+
+    res.status(200).json({
+      statistics: {
+        totalCases,
+        resolvedCases,
+        resolutionRate: totalCases > 0 ? ((resolvedCases / totalCases) * 100).toFixed(2) : 0,
+        pendingCases,
+        inProgressCases,
+        avgResolutionTimeMs:
+          avgResolutionTime.length > 0
+            ? Math.round(avgResolutionTime[0].avgTime)
+            : 0,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Statistics failed', error: error.message });
+  }
+};
+
+// Update witness details
+const updateWitnesses = async (req, res) => {
+  try {
+    const { caseId } = req.params;
+    const { witnesses } = req.body;
+
+    if (!Array.isArray(witnesses)) {
+      return res.status(400).json({ message: 'Witnesses must be an array' });
+    }
+
+    const caseDoc = await Alert.findById(caseId);
+    if (!caseDoc) {
+      return res.status(404).json({ message: 'Case not found' });
+    }
+
+    caseDoc.witnesses = witnesses;
+    caseDoc.auditTrail = caseDoc.auditTrail || [];
+    caseDoc.auditTrail.push({
+      action: 'WITNESSES_UPDATED',
+      actor: req.user._id,
+      timestamp: new Date(),
+      details: `${witnesses.length} witnesses added`,
+    });
+    await caseDoc.save();
+
+    res.status(200).json({
+      message: 'Witnesses updated',
+      witnesses: caseDoc.witnesses,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Update failed', error: error.message });
+  }
+};
+
+// Close/archive case (Admin only)
+const closeCase = async (req, res) => {
+  try {
+    const { caseId } = req.params;
+    const { closureReason } = req.body;
+
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only admin can close cases' });
+    }
+
+    const caseDoc = await Alert.findById(caseId);
+    if (!caseDoc) {
+      return res.status(404).json({ message: 'Case not found' });
+    }
+
+    caseDoc.status = 'closed';
+    caseDoc.closedAt = new Date();
+    caseDoc.closureReason = closureReason || 'Case closed';
+    caseDoc.auditTrail = caseDoc.auditTrail || [];
+    caseDoc.auditTrail.push({
+      action: 'CASE_CLOSED',
+      actor: req.user._id,
+      timestamp: new Date(),
+      details: closureReason,
+    });
+    await caseDoc.save();
+
+    res.status(200).json({
+      message: 'Case closed successfully',
+      caseId: caseDoc._id,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Case closure failed', error: error.message });
+  }
+};
+
+// Add audio/video evidence
+const addMediaEvidence = async (req, res) => {
+  try {
+    const { caseId } = req.params;
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const caseDoc = await Alert.findById(caseId);
+    if (!caseDoc) {
+      return res.status(404).json({ message: 'Case not found' });
+    }
+
+    const mediaEvidence = {
+      type: 'media',
+      mediaType: req.file.mimetype,
+      url: `/uploads/case_attachments/${req.file.filename}`,
+      filename: req.file.originalname,
+      size: req.file.size,
+      uploadedBy: req.user._id,
+      uploadedAt: new Date(),
+      chainOfCustody: [
+        {
+          actor: req.user._id,
+          action: 'UPLOADED',
+          timestamp: new Date(),
+          notes: 'Initial upload',
+        },
+      ],
+    };
+
+    caseDoc.evidence = caseDoc.evidence || [];
+    caseDoc.evidence.push(mediaEvidence);
+    caseDoc.auditTrail = caseDoc.auditTrail || [];
+    caseDoc.auditTrail.push({
+      action: 'MEDIA_EVIDENCE_ADDED',
+      actor: req.user._id,
+      timestamp: new Date(),
+      details: req.file.originalname,
+    });
+    await caseDoc.save();
+
+    res.status(201).json({
+      message: 'Media evidence uploaded',
+      mediaEvidence,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Media upload failed', error: error.message });
+  }
+};
+
+// Track evidence chain of custody
+const updateEvidenceChain = async (req, res) => {
+  try {
+    const { caseId, evidenceId } = req.params;
+    const { action, notes } = req.body;
+
+    const caseDoc = await Alert.findById(caseId);
+    if (!caseDoc) {
+      return res.status(404).json({ message: 'Case not found' });
+    }
+
+    const evidence = caseDoc.evidence?.find(
+      e => e._id?.toString() === evidenceId || e.referenceId === evidenceId
+    );
+    if (!evidence) {
+      return res.status(404).json({ message: 'Evidence not found' });
+    }
+
+    evidence.chainOfCustody = evidence.chainOfCustody || [];
+    evidence.chainOfCustody.push({
+      actor: req.user._id,
+      action: action || 'HANDLED',
+      timestamp: new Date(),
+      notes: notes || '',
+    });
+
+    await caseDoc.save();
+
+    res.status(200).json({
+      message: 'Chain of custody updated',
+      chainOfCustody: evidence.chainOfCustody,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Update failed', error: error.message });
+  }
+};
+
 module.exports = {
   assignCaseToPolice,
   acceptCase,
@@ -368,5 +673,15 @@ module.exports = {
   getPendingCases,
   createCase,
   getCaseById,
-  // deleteCase handled below
+  addAttachment,
+  deleteAttachment,
+  addEvidence,
+  deleteEvidence,
+  generateFIR,
+  searchCases,
+  getCaseStatistics,
+  updateWitnesses,
+  closeCase,
+  addMediaEvidence,
+  updateEvidenceChain,
 };

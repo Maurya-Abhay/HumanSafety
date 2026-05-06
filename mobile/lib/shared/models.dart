@@ -928,3 +928,234 @@ class ContactsProvider extends ChangeNotifier {
     }
   }
 }
+
+class AmbulanceAssignment {
+  final String id;
+  final String patientName;
+  final double latitude;
+  final double longitude;
+  final String address;
+  final int etaMinutes;
+  final String priority;
+  final String status;
+  final DateTime createdAt;
+  final String? description;
+
+  AmbulanceAssignment({
+    required this.id,
+    required this.patientName,
+    required this.latitude,
+    required this.longitude,
+    required this.address,
+    required this.etaMinutes,
+    required this.priority,
+    required this.status,
+    required this.createdAt,
+    this.description,
+  });
+
+  factory AmbulanceAssignment.fromJson(Map<String, dynamic> json) {
+    return AmbulanceAssignment(
+      id: json['_id'] ?? json['id'] ?? '',
+      patientName: json['patientName'] ?? json['metadata']?['patientName'] ?? 'Unknown',
+      latitude: (json['location']?['latitude'] ?? json['latitude'] ?? 0).toDouble(),
+      longitude: (json['location']?['longitude'] ?? json['longitude'] ?? 0).toDouble(),
+      address: json['location']?['address'] ?? json['address'] ?? 'Unknown location',
+      etaMinutes: json['eta']?['estimatedMinutes'] ?? json['etaMinutes'] ?? 0,
+      priority: json['priority'] ?? 'high',
+      status: json['status'] ?? 'pending',
+      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
+      description: json['description'] ?? json['metadata']?['description'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'patientName': patientName,
+      'latitude': latitude,
+      'longitude': longitude,
+      'address': address,
+      'etaMinutes': etaMinutes,
+      'priority': priority,
+      'status': status,
+      'createdAt': createdAt.toIso8601String(),
+      'description': description,
+    };
+  }
+}
+
+class AmbulanceProvider extends ChangeNotifier {
+  List<AmbulanceAssignment> _assignments = [];
+  AmbulanceAssignment? _currentAssignment;
+  bool _isOnline = false;
+  bool _isLoading = false;
+  String? _error;
+  List<AmbulanceAssignment> _tripHistory = [];
+  double _currentLatitude = 0;
+  double _currentLongitude = 0;
+  int _totalTrips = 0;
+  double _averageRating = 0;
+
+  List<AmbulanceAssignment> get assignments => _assignments;
+  AmbulanceAssignment? get currentAssignment => _currentAssignment;
+  bool get isOnline => _isOnline;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+  List<AmbulanceAssignment> get tripHistory => _tripHistory;
+  double get currentLatitude => _currentLatitude;
+  double get currentLongitude => _currentLongitude;
+  int get totalTrips => _totalTrips;
+  double get averageRating => _averageRating;
+
+  Future<void> loadRequests() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final response = await ApiService.getAmbulanceAssignments();
+      _assignments = response;
+      print('✅ Loaded ${_assignments.length} ambulance assignments');
+    } catch (e) {
+      _error = e.toString();
+      print('❌ Error loading assignments: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> acceptRequest(String assignmentId, int eta) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final result = await ApiService.acceptAmbulanceAssignment(assignmentId, eta);
+      if (result) {
+        _currentAssignment = _assignments.firstWhere((a) => a.id == assignmentId);
+        _assignments.removeWhere((a) => a.id == assignmentId);
+        print('✅ Assignment accepted');
+      }
+      return result;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> toggleOnlineStatus(bool goOnline) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final result = await ApiService.updateAmbulanceOnlineStatus(goOnline);
+      _isOnline = goOnline;
+      return result;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> updateLocation(double latitude, double longitude, String? address) async {
+    _currentLatitude = latitude;
+    _currentLongitude = longitude;
+    try {
+      return await ApiService.updateAmbulanceLocation(latitude, longitude, address);
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    }
+  }
+
+  Future<bool> markArrived() async {
+    if (_currentAssignment == null) {
+      _error = 'No active assignment';
+      return false;
+    }
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final result = await ApiService.markAmbulanceArrived(_currentAssignment!.id);
+      return result;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> completeAssignment(String patientCondition, String treatmentGiven) async {
+    if (_currentAssignment == null) {
+      _error = 'No active assignment';
+      return false;
+    }
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final result = await ApiService.completeAmbulanceAssignment(
+        _currentAssignment!.id,
+        patientCondition,
+        treatmentGiven,
+      );
+      if (result) {
+        _tripHistory.insert(0, _currentAssignment!);
+        _totalTrips++;
+        _currentAssignment = null;
+      }
+      return result;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadTripHistory() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final response = await ApiService.getAmbulanceTripHistory();
+      _tripHistory = response;
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadProfileStats() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final stats = await ApiService.getAmbulanceStats();
+      _totalTrips = stats['totalTrips'] ?? 0;
+      _averageRating = (stats['averageRating'] ?? 0).toDouble();
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  void clearError() {
+    _error = null;
+    notifyListeners();
+  }
+}

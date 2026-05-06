@@ -36,9 +36,16 @@ const getNearbyUsers = (users, userLat, userLon, radiusKm) => {
     .sort((a, b) => a.distance - b.distance);
 };
 
+const calculateETA = (distanceKm, speedKmh = 40) => {
+  // Return ETA in minutes
+  if (!distanceKm || distanceKm === 0) return 0;
+  return Math.ceil((distanceKm / (speedKmh || 40)) * 60);
+};
+
 module.exports = {
   validateLocation,
   calculateDistance,
   formatLocation,
   getNearbyUsers,
+  calculateETA,
 };

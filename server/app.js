@@ -7,6 +7,10 @@ const WebSocket = require('ws');
 const connectDB = require('./config/db');
 const rateLimit = require('express-rate-limit');
 
+// Import middleware
+const { errorHandler, notFoundHandler } = require('./middleware/error.middleware');
+const { formatResponse } = require('./middleware/response.middleware');
+
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 const contactRoutes = require('./routes/contact.routes');
@@ -21,6 +25,8 @@ const hospitalAdminRoutes = require('./routes/hospital_admin.routes');
 const adminRoutes = require('./routes/admin.routes');
 const caseRoutes = require('./routes/case.routes');
 const ambulanceRoutes = require('./routes/ambulance.routes');
+const aiRoutes = require('./routes/ai.routes');
+const healthRoutes = require('./routes/health.routes');
 
 const { getRealtimeService } = require('./services/realtime_event_service');
 const FailureHandlingService = require('./services/failure_handling_service');
@@ -33,13 +39,13 @@ const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
   message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
-  legacyHeaders: false, // Disable `X-RateLimit-*` headers
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Stricter limit for auth endpoints
+  windowMs: 15 * 60 * 1000,
+  max: 5,
   message: 'Too many login attempts, please try again later.',
   skipSuccessfulRequests: false,
 });
@@ -48,7 +54,6 @@ const authLimiter = rateLimit({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// CORS: Restrict to known origins in production, but allow local Flutter web ports
 const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
   .split(',')
   .map((origin) => origin.trim())
@@ -56,17 +61,12 @@ const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
 
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin) {
-      return callback(null, true);
-    }
-
+    if (!origin) return callback(null, true);
     const isLocalDevOrigin = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
     const isAllowedOrigin = allowedOrigins.includes(origin);
-
     if (isAllowedOrigin || isLocalDevOrigin) {
       return callback(null, true);
     }
-
     return callback(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,
@@ -74,6 +74,9 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 app.use(cors(corsOptions));
+
+// ================= RESPONSE FORMATTER =================
+app.use(formatResponse);
 
 // Request ID tracking
 app.use((req, res, next) => {
@@ -90,7 +93,6 @@ app.use((req, res, next) => {
 });
 
 // ================= ROUTES =================
-// Apply stricter rate limiting to auth endpoints
 app.use('/api/v1/auth', authLimiter, authRoutes);
 app.use('/api/v1/user', userRoutes);
 app.use('/api/v1/contact', contactRoutes);
@@ -105,9 +107,10 @@ app.use('/api/v1/hospital-admin', hospitalAdminRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/case', caseRoutes);
 app.use('/api/v1/ambulance', ambulanceRoutes);
+app.use('/api/v1/ai', aiRoutes);
+app.use('/health', healthRoutes);
 
-
-// Legacy routes (safe wrapper)
+// Legacy routes
 [
   ['/auth', authRoutes],
   ['/user', userRoutes],
@@ -124,23 +127,9 @@ app.use('/api/v1/ambulance', ambulanceRoutes);
   ['/case', caseRoutes],
 ].forEach(([path, handler]) => app.use(path, handler));
 
-// ================= HEALTH =================
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', service: 'HumanSafety Backend v3' });
-});
-
 // ================= ERROR HANDLING =================
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found', path: req.path });
-});
-
-app.use((err, req, res, next) => {
-  console.error('ERROR:', err.message);
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal Server Error',
-    requestId: req.requestId,
-  });
-});
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 // ================= SERVER =================
 const PORT = process.env.PORT || 5000;

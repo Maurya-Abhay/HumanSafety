@@ -10,6 +10,7 @@ const requestPoliceAccount = async (req, res) => {
 
     if (!phone || !name || !stationName || !badgeNumber || !idProof) {
       return res.status(400).json({ 
+        success: false,
         message: 'Missing required fields: phone, name, stationName, badgeNumber, idProof' 
       });
     }
@@ -17,7 +18,7 @@ const requestPoliceAccount = async (req, res) => {
     let user = await User.findOne({ phone });
 
     if (user && user.role !== 'user') {
-      return res.status(400).json({ message: 'Account already registered with different role' });
+      return res.status(400).json({ success: false, message: 'Account already registered with different role' });
     }
 
     if (!user) {
@@ -47,6 +48,7 @@ const requestPoliceAccount = async (req, res) => {
     }
 
     res.status(201).json({
+      success: true,
       message: 'Police registration request submitted. Awaiting admin approval.',
       userId: user._id,
       status: 'pending',

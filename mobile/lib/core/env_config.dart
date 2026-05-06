@@ -1,4 +1,5 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class EnvConfig {
   static late final String apiProtocol;
@@ -34,6 +35,12 @@ class EnvConfig {
     wsHost = dotenv.get('WS_HOST', fallback: 'localhost');
     wsPort = dotenv.get('WS_PORT', fallback: '5000');
     aiEngineUrl = dotenv.get('AI_ENGINE_URL', fallback: 'http://localhost:8000');
+
+    // If running on web, override host to localhost (10.0.2.2 is for Android emulator only)
+    if (kIsWeb) {
+      apiHost = 'localhost';
+      wsHost = 'localhost';
+    }
     
     // Feature Flags
     enableDebugLogs = dotenv.get('ENABLE_DEBUG_LOGS', fallback: 'true').toLowerCase() == 'true';

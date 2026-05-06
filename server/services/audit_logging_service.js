@@ -56,9 +56,22 @@ class AuditLoggingService {
         `   Hash: ${entry.hash.substring(0, 16)}...`
       );
 
-      // TODO: Persist to MongoDB and file system
-      // await this.persistToDatabase(entry);
-      // await this.persistToFile(entry);
+      // Persist to database
+      try {
+        const AuditLog = require('../models/audit.model');
+        await AuditLog.create({
+          userId: entry.userId,
+          action: action,
+          details: entry.details,
+          resourceType: entry.resourceType,
+          resourceId: entry.resourceId,
+          ipAddress: entry.ipAddress,
+          timestamp: entry.timestamp,
+          hash: entry.hash
+        }).catch(err => console.warn('Audit persist warning:', err.message));
+      } catch (persistErr) {
+        console.warn('Audit logging not fully configured:', persistErr.message);
+      }
 
       return entry;
     } catch (error) {

@@ -24,19 +24,13 @@ const triggerPanic = async (req, res) => {
     // Validate location
     const locCheck = validateLocation(latitude, longitude);
     if (!locCheck.valid) {
-      return res.status(400).json({
-        success: false,
-        message: locCheck.message
-      });
+      return res.apiError(locCheck.message, null, 400, 'INVALID_LOCATION');
     }
     
     // Get user
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
+      return res.apiError('User not found', null, 404, 'USER_NOT_FOUND');
     }
 
     // ============== RISK ASSESSMENT VIA AI ENGINE ==============
@@ -167,30 +161,26 @@ const triggerPanic = async (req, res) => {
 
     // ============== RESPONSE ==============
 
-    res.status(200).json({
-      success: true,
-      message: 'Panic alert activated successfully',
-      alert: {
-        id: alert._id,
-        timestamp: alert.timestamp,
-        location: {
-          latitude,
-          longitude,
-          mapLink: `https://maps.google.com/?q=${latitude},${longitude}`
-        },
-        emergencyContactsNotified: smsNotified,
-        nearbyHospitals: nearbyHospitals.map(h => ({
-          name: h.name,
-          phone: h.phone,
-          address: h.address,
-          distance: 'calculated'
-        })),
-        riskAssessment: {
-          riskScore,
-          riskLevel
-        }
+    return res.apiSuccess({
+      id: alert._id,
+      timestamp: alert.timestamp,
+      location: {
+        latitude,
+        longitude,
+        mapLink: `https://maps.google.com/?q=${latitude},${longitude}`
+      },
+      emergencyContactsNotified: smsNotified,
+      nearbyHospitals: nearbyHospitals.map(h => ({
+        name: h.name,
+        phone: h.phone,
+        address: h.address,
+        distance: 'calculated'
+      })),
+      riskAssessment: {
+        riskScore,
+        riskLevel
       }
-    });
+    }, 'Panic alert activated successfully', 201);
 
   } catch (error) {
     logger.error('Panic trigger error', {
@@ -200,11 +190,7 @@ const triggerPanic = async (req, res) => {
       error: error.message,
       stack: error.stack
     });
-    res.status(500).json({
-      success: false,
-      message: 'Error triggering panic alert',
-      error: error.message
-    });
+    return res.apiError('Error triggering panic alert', error, 500, 'PANIC_TRIGGER_FAILED');
   }
 };
 
@@ -220,8 +206,7 @@ const getAlerts = async (req, res) => {
       .sort({ timestamp: -1 })
       .limit(50);
     
-    res.status(200).json({
-      success: true,
+    return res.apiSuccess({
       count: alerts.length,
       alerts: alerts.map(a => ({
         id: a._id,
@@ -235,14 +220,10 @@ const getAlerts = async (req, res) => {
         contactsNotified: a.userInfo?.emergencyPhones?.length || 0,
         timestamp: a.timestamp
       }))
-    });
+    }, 'Alerts retrieved successfully', 200);
   } catch (error) {
-    console.error('❌ Get Alerts Error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch alerts',
-      error: error.message
-    });
+    logger.error('Get alerts error', { error: error.message });
+    return res.apiError('Failed to fetch alerts', error, 500, 'GET_ALERTS_FAILED');
   }
 };
 
@@ -263,27 +244,16 @@ const dismissAlert = async (req, res) => {
     );
     
     if (!alert) {
-      return res.status(404).json({
-        success: false,
-        message: 'Alert not found'
-      });
+      return res.apiError('Alert not found', null, 404, 'ALERT_NOT_FOUND');
     }
     
-    res.status(200).json({
-      success: true,
-      message: 'Alert updated',
-      alert: {
-        id: alert._id,
-        status: alert.status
-      }
-    });
+    return res.apiSuccess({
+      id: alert._id,
+      status: alert.status
+    }, 'Alert updated successfully', 200);
   } catch (error) {
-    console.error('❌ Dismiss Alert Error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update alert',
-      error: error.message
-    });
+    logger.error('Dismiss alert error', { error: error.message });
+    return res.apiError('Failed to update alert', error, 500, 'DISMISS_ALERT_FAILED');
   }
 };
 

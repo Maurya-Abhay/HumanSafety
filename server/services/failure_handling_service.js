@@ -66,8 +66,15 @@ class FailureHandlingService {
         `Metadata: ${JSON.stringify(metadata)}`
       );
 
-      // TODO: Integrate with monitoring service (e.g., Sentry, DataDog)
-      // await MonitoringService.alertDLQ(emergencyId, reason);
+      // Log to monitoring service (Integrated with logger service)
+      const logger = require('./logger.service');
+      logger.logEvent('DLQ_EVENT_ALERT', {
+        emergencyId,
+        reason,
+        state: emergency.state,
+        metadata,
+        timestamp: new Date().toISOString()
+      });
 
       return emergency;
     } catch (error) {
@@ -235,10 +242,36 @@ class FailureHandlingService {
         `Escalation #${emergency.escalationCount}`
       );
 
-      // TODO: Implement escalation logic
-      // - If police didn't respond, broadcast to wider area
-      // - If hospital didn't respond, try next hospital
-      // - If multiple escalations, alert dispatcher
+      // Implement escalation logic
+      const realtimeService = require('./realtime_event_service');
+      
+      if (reason === 'TIMEOUT_NO_ACCEPTANCE') {
+        // Police didn't respond - broadcast to wider area
+        realtimeService.broadcastByRole('police', {
+          type: 'EMERGENCY_ESCALATED',
+          data: {
+            emergencyId: emergency._id,
+            reason,
+            escalationLevel: emergency.escalationCount,
+            location: emergency.location
+          }
+        });
+        console.log(`📢 Re-broadcasting to wider police network (escalation level ${emergency.escalationCount})`);
+      }
+      
+      if (emergency.escalationCount >= 3) {
+        // Multiple escalations - alert dispatcher/admin
+        realtimeService.broadcastByRole('admin', {
+          type: 'EMERGENCY_CRITICAL_ESCALATION',
+          data: {
+            emergencyId: emergency._id,
+            escalationCount: emergency.escalationCount,
+            reason,
+            location: emergency.location
+          }
+        });
+        console.log(`🚨 CRITICAL: Emergency escalated ${emergency.escalationCount} times - admin notified`);
+      }
 
       return emergency;
     } catch (error) {
@@ -315,7 +348,15 @@ class FailureHandlingService {
       // Alert if too many failed
       if (stats.failedEmergencies > 10) {
         console.warn('⚠️  WARNING: High number of failed emergencies in DLQ');
-        // TODO: Alert admin
+        const realtimeService = require('./realtime_event_service');
+        realtimeService.broadcastByRole('admin', {
+          type: 'SYSTEM_ALERT',
+          data: {
+            alertType: 'HIGH_DLQ_COUNT',
+            failedEmergencies: stats.failedEmergencies,
+            message: `High number of failed emergencies (${stats.failedEmergencies}) in dead-letter queue`
+          }
+        });
       }
 
       return stats;
@@ -349,7 +390,21 @@ class FailureHandlingService {
       // Strategy 2: If no hospital accepted, try next hospital
       if (emergency.state === 'ACCEPTED' && !emergency.assignedHospital) {
         console.log('Recovery: Trying next hospital');
-        // TODO: Implement hospital routing retry
+        const hospitalRoutingService = require('./hospital_routing_service');
+        try {
+          const nextHospital = await hospitalRoutingService.getNextHospital(
+            emergency.location,
+            [emergency.attemptedHospitals || []].flat()
+          );
+          if (nextHospital) {
+            emergency.attemptedHospitals = emergency.attemptedHospitals || [];
+            emergency.attemptedHospitals.push(nextHospital._id);
+            await emergency.save();
+            console.log(`✅ Attempting next hospital: ${nextHospital.name}`);
+          }
+        } catch (routingError) {
+          console.error('Hospital retry failed:', routingError.message);
+        }
       }
 
       // Strategy 3: If stuck in progress for too long, re-broadcast

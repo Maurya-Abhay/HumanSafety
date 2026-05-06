@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'app.dart';
 import 'core/env_config.dart';
 import 'core/background_service.dart';
@@ -8,9 +9,17 @@ import 'core/audio_service.dart';
 import 'core/portal_sound_service.dart';
 import 'core/permission_service.dart';
 import 'core/button_listener_service.dart';
+import 'core/app_config.dart';
+import 'core/cached_http_client.dart';
+import 'core/complete_api_service.dart';
+import 'core/theme.dart';
+import 'core/sensor_service.dart';
+import 'shared/models.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Configure system UI
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
@@ -20,33 +29,47 @@ void main() async {
     systemNavigationBarContrastEnforced: false,
   ));
 
-  // Start the app immediately; defer all inits until app is fully rendered.
+  // Set portrait orientation
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
+  // Initialize app
   runApp(const HumanSafetyApp());
 
-  // Defer everything: env config, background services, audio, sensors.
-  // This lets the first frame render almost instantly.
+  // Defer heavy initialization
   WidgetsBinding.instance.addPostFrameCallback((_) {
     Future.delayed(const Duration(milliseconds: 500), () async {
-      try {
-        // Load env config in background (not blocking UI).
-        await EnvConfig.initialize();
-        EnvConfig.debugPrint('API Base URL: ${EnvConfig.apiBaseUrl}');
-        EnvConfig.debugPrint('WebSocket URL: ${EnvConfig.wsBaseUrl}');
-      } catch (e) {
-        debugPrint('Env init error: $e');
-      }
-
-      try {
-        // Initialize non-blocking background services after UI settles.
-        ButtonListenerService().initialize();
-        BackgroundService.initialize();
-        EmergencyOrchestrator().initialize();
-        AudioService().initialize();
-        PortalSoundService().initialize();
-        PermissionService.requestEssentialPermissions();
-      } catch (e) {
-        debugPrint('Background init error: $e');
-      }
+      await _initializeServices();
     });
   });
 }
+
+Future<void> _initializeServices() async {
+  try {
+    // Load environment configuration
+    await EnvConfig.initialize();
+    debugPrint('✅ Env config initialized: ${EnvConfig.apiBaseUrl}');
+
+    // Configure API service
+    ApiService().setBaseUrl(EnvConfig.apiBaseUrl);
+
+    // Initialize non-blocking background services
+    ButtonListenerService().initialize();
+    BackgroundService.initialize();
+    EmergencyOrchestrator().initialize();
+    AudioService().initialize();
+    PortalSoundService().initialize();
+
+    // Request permissions asynchronously
+    await Future.delayed(const Duration(milliseconds: 1000));
+    PermissionService.requestEssentialPermissions();
+
+    debugPrint('✅ All services initialized successfully');
+  } catch (e) {
+    debugPrint('❌ Service initialization error: $e');
+  }
+}
+
+// Theme Provider class in models.dart - imported from shared/models.dart via provider setup

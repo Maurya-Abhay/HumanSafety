@@ -1,22 +1,26 @@
+const Hospital = require('../models/hospital.model');
 const Alert = require('../models/alert.model');
 const User = require('../models/user.model');
+const Ambulance = require('../models/ambulance.model');
 const { findNearestHospitals, requestAmbulance } = require('../services/hospital.service');
 const { validateLocation } = require('../services/location.service');
+const { calculateDistance } = require('../services/location.service');
 
+// Request hospital (SOS trigger)
 const requestHospital = async (req, res) => {
   try {
-    const { latitude, longitude, emergency } = req.body;
+    const { latitude, longitude, emergency, patientName, medicalCondition } = req.body;
     
     const locCheck = validateLocation(latitude, longitude);
-    if (!locCheck.valid) return res.status(400).json({ message: locCheck.message });
+    if (!locCheck.valid) return res.status(400).json({ success: false, message: locCheck.message });
     
     const userId = req.user._id || req.user.userId;
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     
     const hospitals = await findNearestHospitals(latitude, longitude, 10);
     if (hospitals.length === 0) {
-      return res.status(404).json({ message: 'No hospitals found nearby' });
+      return res.status(404).json({ success: false, message: 'No hospitals found nearby' });
     }
     
     const alert = await Alert.create({
@@ -24,10 +28,13 @@ const requestHospital = async (req, res) => {
       type: 'hospital',
       location: { latitude, longitude },
       status: 'pending',
-      description: 'Hospital request',
+      priority: emergency ? 'critical' : 'high',
+      description: `Hospital request - ${medicalCondition || 'Medical emergency'}`,
       metadata: {
         emergency: emergency || false,
         hospitalCount: hospitals.length,
+        patientName: patientName || user.name,
+        medicalCondition: medicalCondition || 'Not specified',
       },
     });
     
@@ -38,18 +45,275 @@ const requestHospital = async (req, res) => {
     }
     
     res.status(200).json({
+      success: true,
       message: 'Hospital request sent',
+      emergencyId: alert._id,
       hospitals: hospitals.slice(0, 3).map(h => ({
+        id: h._id,
         name: h.name,
         phone: h.phone,
         distance: h.distance.toFixed(1),
+        eta: Math.ceil(h.distance / 40), // rough ETA in minutes
+        availableBeds: h.availableBeds,
       })),
       requestsSent: successCount,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Hospital request failed', error: error.message });
+    res.status(500).json({ success: false, message: 'Hospital request failed', error: error.message });
   }
 };
+
+// Search hospitals with filters
+const searchHospitals = async (req, res) => {
+  try {
+    const { latitude, longitude, radius = 15, specialization } = req.query;
+
+    if (!latitude || !longitude) {
+      return res.status(400).json({ success: false, message: 'Location coordinates required' });
+    }
+
+    let hospitals = await Hospital.find({ isActive: true })
+      .select('name phone location address availableBeds totalBeds specializations ratings averageRating');
+
+    // Filter by distance
+    hospitals = hospitals.filter(h => {
+      const dist = calculateDistance(
+        parseFloat(latitude),
+        parseFloat(longitude),
+        h.location.latitude,
+        h.location.longitude
+      );
+      return dist <= parseFloat(radius);
+    });
+
+    // Sort by distance
+    hospitals = hospitals.map(h => ({
+      ...h.toObject(),
+      distance: calculateDistance(
+        parseFloat(latitude),
+        parseFloat(longitude),
+        h.location.latitude,
+        h.location.longitude
+      ),
+    })).sort((a, b) => a.distance - b.distance);
+
+    // Filter by specialization
+    if (specialization) {
+      hospitals = hospitals.filter(h =>
+        h.specializations.some(s => s.toLowerCase().includes(specialization.toLowerCase()))
+      );
+    }
+
+    res.status(200).json({
+      success: true,
+      count: hospitals.length,
+      hospitals: hospitals.slice(0, 20),
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Search failed', error: error.message });
+  }
+};
+
+// Get hospital details
+const getHospitalDetails = async (req, res) => {
+  try {
+    const { hospitalId } = req.params;
+
+    const hospital = await Hospital.findById(hospitalId)
+      .populate('departments', 'name')
+      .populate('reviews', 'rating comment createdAt');
+
+    if (!hospital) {
+      return res.status(404).json({ success: false, message: 'Hospital not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      hospital,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch details', error: error.message });
+  }
+};
+
+// Accept emergency at hospital
+const acceptEmergency = async (req, res) => {
+  try {
+    const hospitalId = req.user._id;
+    const { emergencyId, eta } = req.body;
+
+    const emergency = await Alert.findById(emergencyId);
+    if (!emergency) {
+      return res.status(404).json({ success: false, message: 'Emergency not found' });
+    }
+
+    emergency.assignedHospital = hospitalId;
+    emergency.hospitalAcceptedAt = new Date();
+    emergency.hospitalStatus = 'ACCEPTED';
+    emergency.status = 'accepted';
+    emergency.eta = eta || 15;
+
+    await emergency.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Emergency accepted',
+      emergencyId,
+      eta,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Acceptance failed', error: error.message });
+  }
+};
+
+// Update patient intake
+const updatePatientIntake = async (req, res) => {
+  try {
+    const hospitalId = req.user._id;
+    const { emergencyId, patientName, age, bloodType, vitals, medicalHistory, medications } = req.body;
+
+    const emergency = await Alert.findById(emergencyId);
+    if (!emergency) {
+      return res.status(404).json({ success: false, message: 'Emergency not found' });
+    }
+
+    emergency.patientIntakeStarted = true;
+    emergency.metadata = emergency.metadata || {};
+    emergency.metadata.patientIntake = {
+      patientName: patientName || 'Unknown',
+      age,
+      bloodType,
+      vitals,
+      medicalHistory,
+      medications,
+      intakeStartedAt: new Date(),
+    };
+
+    emergency.hospitalStatus = 'PREPARING';
+    emergency.status = 'in-progress';
+
+    await emergency.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Patient intake updated',
+      intakeData: emergency.metadata.patientIntake,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Intake update failed', error: error.message });
+  }
+};
+
+// Mark patient as admitted
+const markPatientAdmitted = async (req, res) => {
+  try {
+    const hospitalId = req.user._id;
+    const { emergencyId, bedNumber, wardName, doctorAssigned } = req.body;
+
+    const emergency = await Alert.findById(emergencyId);
+    if (!emergency) {
+      return res.status(404).json({ success: false, message: 'Emergency not found' });
+    }
+
+    emergency.patientAdmitted = true;
+    emergency.hospitalStatus = 'ADMITTED';
+    emergency.metadata = emergency.metadata || {};
+    emergency.metadata.admission = {
+      bedNumber,
+      wardName,
+      doctorAssigned,
+      admittedAt: new Date(),
+    };
+
+    await emergency.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Patient admitted',
+      admissionData: emergency.metadata.admission,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Admission marking failed', error: error.message });
+  }
+};
+
+// Get hospital statistics
+const getHospitalStats = async (req, res) => {
+  try {
+    const hospitalId = req.user._id;
+
+    const totalEmergencies = await Alert.countDocuments({
+      assignedHospital: hospitalId,
+    });
+
+    const resolvedEmergencies = await Alert.countDocuments({
+      assignedHospital: hospitalId,
+      status: 'resolved',
+    });
+
+    const activeEmergencies = await Alert.countDocuments({
+      assignedHospital: hospitalId,
+      status: { $in: ['pending', 'in-progress'] },
+    });
+
+    const avgResponseTime = await Alert.aggregate([
+      {
+        $match: {
+          assignedHospital: hospitalId,
+          hospitalAcceptedAt: { $exists: true, $ne: null },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          avgTime: {
+            $avg: {
+              $subtract: ['$hospitalAcceptedAt', '$createdAt'],
+            },
+          },
+        },
+      },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      statistics: {
+        totalEmergencies,
+        resolvedEmergencies,
+        activeEmergencies,
+        resolutionRate: totalEmergencies > 0 ? ((resolvedEmergencies / totalEmergencies) * 100).toFixed(2) : 0,
+        avgResponseTimeSeconds:
+          avgResponseTime.length > 0 ? Math.round(avgResponseTime[0].avgTime / 1000) : 0,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Stats fetch failed', error: error.message });
+  }
+};
+
+// Get hospital active emergencies
+const getActiveEmergencies = async (req, res) => {
+  try {
+    const hospitalId = req.user._id;
+
+    const emergencies = await Alert.find({
+      assignedHospital: hospitalId,
+      status: { $in: ['pending', 'in-progress'] },
+    })
+      .populate('userId', 'name phone')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: emergencies.length,
+      emergencies,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch emergencies', error: error.message });
+  }
+};
+
+
 
 const getNearbyHospitals = async (req, res) => {
   try {

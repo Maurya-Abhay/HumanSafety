@@ -27,6 +27,7 @@ class HumanSafetyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CasesProvider()),
         ChangeNotifierProvider(create: (_) => NotificationsProvider()),
         ChangeNotifierProvider(create: (_) => StatsProvider()),
+        ChangeNotifierProvider(create: (_) => AmbulanceProvider()),
         ChangeNotifierProvider(create: (_) => EmergencyOrchestrator()),
         ChangeNotifierProvider(create: (_) => SensorService()),
         ChangeNotifierProvider(create: (_) => AudioService()),
@@ -103,26 +104,43 @@ class _AppStartupWrapperState extends State<_AppStartupWrapper> {
     // Skip splash screen entirely - go straight to login/home based on auth state
     return Consumer<AuthProvider>(
       builder: (context, authProvider, _) {
-        if (authProvider.isAuthenticated) {
-          // User is logged in - show home for their role
-          final role = authProvider.user?.role ?? 'user';
-          final homeRoute = AppRoutes.getHomeRouteForRole(role);
+        // Navigate based on auth state
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
           
-          // Navigate to home and remove splash from stack
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            Navigator.pushReplacementNamed(context, homeRoute);
-          });
-        } else {
-          // User not authenticated - show login screen
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            Navigator.pushReplacementNamed(context, AppRoutes.login);
-          });
-        }
+          if (authProvider.isAuthenticated) {
+            // User is logged in - show home for their role
+            final role = authProvider.user?.role ?? 'user';
+            final homeRoute = AppRoutes.getHomeRouteForRole(role);
+            
+            // Only navigate if not already on this route
+            if (ModalRoute.of(context)?.settings.name != homeRoute) {
+              Navigator.pushReplacementNamed(context, homeRoute);
+            }
+          } else {
+            // User not authenticated - show login screen
+            if (ModalRoute.of(context)?.settings.name != AppRoutes.login) {
+              Navigator.pushReplacementNamed(context, AppRoutes.login);
+            }
+          }
+        });
 
-        // Return minimal blank screen while routing
-        return const Scaffold(
-          backgroundColor: Color(0xFF0A0E21),
-          body: SizedBox.shrink(),
+        // Return loading screen or login screen as fallback
+        return Scaffold(
+          backgroundColor: const Color(0xFF0A0E21),
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text(
+                  'Loading...',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+              ],
+            ),
+          ),
         );
       },
     );

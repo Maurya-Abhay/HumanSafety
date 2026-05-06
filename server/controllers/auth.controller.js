@@ -12,7 +12,7 @@ const sendOTP = async (req, res) => {
     const { phone } = req.body;
 
     if (!phone) {
-      return res.status(400).json({ success: false, message: 'Phone required' });
+      return res.apiError('Phone number is required', error, 400, 'VALIDATION_FAILED');
     }
 
     const otp = generateOTP();
@@ -20,18 +20,10 @@ const sendOTP = async (req, res) => {
 
     await sendSMS(phone, `Your HumanSafety OTP is: ${otp}`);
 
-    res.status(200).json({
-      success: true,
-      message: 'OTP sent',
-      phone,
-    });
+    return res.apiSuccess({ phone, message: 'OTP sent to your phone' }, 'OTP sent successfully', 200);
 
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to send OTP',
-      error: error.message,
-    });
+    return res.apiError('Failed to send OTP', error, 500, 'OTP_SEND_FAILED');
   }
 };
 
@@ -41,12 +33,12 @@ const verifyOTPAndLogin = async (req, res) => {
     const { phone, otp } = req.body;
 
     if (!phone || !otp) {
-      return res.status(400).json({ message: 'Phone and OTP required' });
+      return res.apiError('Phone and OTP are required', null, 400, 'VALIDATION_FAILED');
     }
 
     const check = verifyOTP(phone, otp);
     if (!check.valid) {
-      return res.status(400).json({ message: check.message });
+      return res.apiError(check.message || 'Invalid OTP', null, 400, 'INVALID_OTP');
     }
 
     let user = await User.findOne({ phone });
@@ -65,8 +57,7 @@ const verifyOTPAndLogin = async (req, res) => {
       { expiresIn: process.env.JWT_EXPIRE || '7d' }
     );
 
-    res.status(200).json({
-      message: 'Login successful',
+    return res.apiSuccess({
       token,
       user: {
         id: user._id,
@@ -76,13 +67,10 @@ const verifyOTPAndLogin = async (req, res) => {
         role: user.role || 'user',
         status: user.status || 'active',
       },
-    });
+    }, 'Login successful', 200);
 
   } catch (error) {
-    res.status(500).json({
-      message: 'Login failed',
-      error: error.message,
-    });
+    return res.apiError('OTP verification failed', error, 500, 'OTP_LOGIN_FAILED');
   }
 };
 
@@ -94,29 +82,27 @@ const loginWithPassword = async (req, res) => {
     const { phone, password } = req.body;
 
     if (!phone || !password) {
-      return res.status(400).json({ message: 'Phone and password required' });
+      return res.apiError('Phone and password are required', null, 400, 'VALIDATION_FAILED');
     }
 
     const user = await User.findOne({ phone });
 
     if (!user) {
-      return res.status(400).json({ message: 'User not found' });
+      return res.apiError('User not found', null, 404, 'USER_NOT_FOUND');
     }
 
     if (!user.password) {
-      return res.status(400).json({
-        message: 'Please signup with password first',
-      });
+      return res.apiError('Please signup with password first', null, 400, 'NO_PASSWORD_SET');
     }
 
     if (user.isBlocked) {
-      return res.status(403).json({ message: 'User is blocked' });
+      return res.apiError('User account is blocked', null, 403, 'USER_BLOCKED');
     }
 
     const isMatch = await user.comparePassword(password);
 
     if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid password' });
+      return res.apiError('Invalid password', null, 401, 'INVALID_PASSWORD');
     }
 
     user.lastLogin = new Date();
@@ -128,8 +114,7 @@ const loginWithPassword = async (req, res) => {
       { expiresIn: process.env.JWT_EXPIRE || '7d' }
     );
 
-    res.status(200).json({
-      message: 'Login successful',
+    return res.apiSuccess({
       token,
       user: {
         id: user._id,
@@ -139,13 +124,10 @@ const loginWithPassword = async (req, res) => {
         role: user.role,
         status: user.status,
       },
-    });
+    }, 'Login successful', 200);
 
   } catch (error) {
-    res.status(500).json({
-      message: 'Login failed',
-      error: error.message,
-    });
+    return res.apiError('Login failed', error, 500, 'LOGIN_FAILED');
   }
 };
 
@@ -157,17 +139,13 @@ const signup = async (req, res) => {
     const { fullName, phone, email, password } = req.body;
 
     if (!fullName || !phone || !email || !password) {
-      return res.status(400).json({
-        message: 'Full name, phone, email and password are required',
-      });
+      return res.apiError('Name, phone, email and password are required', null, 400, 'VALIDATION_FAILED');
     }
 
     const existingUser = await User.findOne({ phone });
 
     if (existingUser) {
-      return res.status(400).json({
-        message: 'User with this phone already exists',
-      });
+      return res.apiError('User with this phone already exists', null, 409, 'DUPLICATE_ENTRY');
     }
 
     const user = await User.create({
@@ -185,8 +163,7 @@ const signup = async (req, res) => {
       { expiresIn: process.env.JWT_EXPIRE || '7d' }
     );
 
-    res.status(201).json({
-      message: 'Account created successfully',
+    return res.apiSuccess({
       token,
       user: {
         id: user._id,
@@ -194,13 +171,11 @@ const signup = async (req, res) => {
         name: user.name,
         email: user.email,
       },
-    });
+    }, 'Account created successfully', 201);
 
   } catch (error) {
-    res.status(500).json({
-      message: 'Failed to create account',
-      error: error.message,
-    });
+    return res.apiError(
+      'Failed to create account', error, 500, 'SIGNUP_FAILED');
   }
 };
 
@@ -209,14 +184,9 @@ const signup = async (req, res) => {
 
 const logout = async (req, res) => {
   try {
-    res.status(200).json({
-      message: 'Logout successful',
-    });
+    return res.apiSuccess({}, 'Logout successful', 200);
   } catch (error) {
-    res.status(500).json({
-      message: 'Logout failed',
-      error: error.message,
-    });
+    return res.apiError('Logout failed', error, 500, 'LOGOUT_FAILED');
   }
 };
 
@@ -232,52 +202,36 @@ const refreshToken = async (req, res) => {
     const { token } = req.body;
 
     if (!token) {
-      return res.status(400).json({
-        success: false,
-        message: 'Token required'
-      });
+      return res.apiError('Token is required', null, 400, 'NO_TOKEN');
     }
 
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
     } catch (err) {
-      // Token expired - try to decode without verification to get user info
       try {
         decoded = jwt.decode(token);
         if (!decoded) {
-          return res.status(401).json({
-            success: false,
-            message: 'Invalid token'
-          });
+          return res.apiError('Invalid token', null, 401, 'INVALID_TOKEN');
         }
       } catch (e) {
-        return res.status(401).json({
-          success: false,
-          message: 'Invalid token format'
-        });
+        return res.apiError('Invalid token format', null, 401, 'INVALID_TOKEN');
       }
     }
 
     const user = await User.findById(decoded.userId);
 
     if (!user || !user.isActive) {
-      return res.status(401).json({
-        success: false,
-        message: 'User not found or inactive'
-      });
+      return res.apiError('User not found or inactive', null, 401, 'USER_NOT_FOUND');
     }
 
-    // Generate new token
     const newToken = jwt.sign(
       { userId: user._id, phone: user.phone },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRE || '7d' }
     );
 
-    res.status(200).json({
-      success: true,
-      message: 'Token refreshed successfully',
+    return res.apiSuccess({
       token: newToken,
       expiresIn: process.env.JWT_EXPIRE || '7d',
       user: {
@@ -286,14 +240,10 @@ const refreshToken = async (req, res) => {
         name: user.name,
         role: user.role,
       }
-    });
+    }, 'Token refreshed successfully', 200);
 
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Token refresh failed',
-      error: error.message,
-    });
+    return res.apiError('Token refresh failed', error, 500, 'TOKEN_REFRESH_FAILED');
   }
 };
 
