@@ -93,7 +93,11 @@ class ApiService {
 
       if (statusCode != null && statusCode >= 200 && statusCode < 300) {
         final data = body is String ? jsonDecode(body) as Map<String, dynamic> : body as Map<String, dynamic>;
-        return fromJson(data);
+        
+        // Extract 'data' field if response is wrapped (standard API wrapper format)
+        final actualData = (data['data'] as Map<String, dynamic>?) ?? data;
+        
+        return fromJson(actualData);
       } else if (statusCode == 401) {
         throw ApiException('Unauthorized. Please login again.', 401);
       } else if (statusCode == 403) {

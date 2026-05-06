@@ -119,7 +119,7 @@ const loginWithPassword = async (req, res) => {
       { expiresIn: process.env.JWT_EXPIRE || '7d' }
     );
 
-    return res.apiSuccess({
+    const response = {
       token,
       user: {
         id: user._id,
@@ -129,7 +129,11 @@ const loginWithPassword = async (req, res) => {
         role: user.role,
         status: user.status,
       },
-    }, 'Login successful', 200);
+    };
+
+    console.info(`LOGIN_SUCCESS: phone=${phone} token=${token.substring(0, 20)}... response=${JSON.stringify(response)}`);
+
+    return res.apiSuccess(response, 'Login successful', 200);
 
   } catch (error) {
     return res.apiError('Login failed', error, 500, 'LOGIN_FAILED');
