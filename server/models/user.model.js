@@ -66,6 +66,7 @@ const userSchema = new mongoose.Schema(
     policeDetails: {
       idProof: { type: String, default: null },
       stationName: { type: String, default: null },
+      stationAddress: { type: String, default: null },
       badgeNumber: { type: String, default: null },
       badgeProof: { type: String, default: null },
     },
@@ -73,6 +74,7 @@ const userSchema = new mongoose.Schema(
     hospitalDetails: {
       hospitalName: { type: String, default: null },
       licenseProof: { type: String, default: null },
+      staffType: { type: String, default: null },
       location: {
         latitude: { type: Number, default: 0 },
         longitude: { type: Number, default: 0 },

@@ -21,4 +21,7 @@ router.get('/location', verifyToken, getLocation);
 // POST /user/role-application - Apply for a role
 router.post('/role-application', verifyToken, applyRole);
 
+// GET /user/role-application - Retrieve current role application status
+router.get('/role-application', verifyToken, getRoleApplicationStatus);
+
 module.exports = router;

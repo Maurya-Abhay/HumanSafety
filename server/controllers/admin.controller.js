@@ -224,15 +224,21 @@ const getRoleApplications = async (req, res) => {
       applications: applications.map(user => ({
         id: user._id,
         userId: user._id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
+        requestedRole: user.role,
+        applicantName: user.name,
+        applicantPhone: user.phone,
+        applicantEmail: user.email,
         role: user.role,
         status: user.status,
         createdAt: user.createdAt,
-        policeDetails: user.policeDetails,
-        hospitalDetails: user.hospitalDetails,
+        badgeNumber: user.policeDetails?.badgeNumber,
+        stationName: user.policeDetails?.stationName,
+        stationAddress: user.policeDetails?.stationAddress,
+        hospitalName: user.hospitalDetails?.hospitalName,
+        hospitalAddress: user.hospitalDetails?.location?.address,
+        staffType: user.hospitalDetails?.staffType,
         adminNotes: user.adminNotes,
+        rejectionReason: user.rejectionReason,
       }))
     });
   } catch (error) {

@@ -102,33 +102,141 @@ const getLocation = async (req, res) => {
 
 const applyRole = async (req, res) => {
   try {
-    const { role, documents } = req.body;
-    const userId = req.user._id || req.user.userId;
-    
-    if (!role || !['police', 'hospital', 'admin'].includes(role)) {
+    const {
+      role,
+      requestedRole,
+      documents,
+      applicantName,
+      applicantPhone,
+      applicantEmail,
+      badgeNumber,
+      stationName,
+      stationAddress,
+      hospitalName,
+      hospitalAddress,
+      staffType,
+    } = req.body;
+
+    const selectedRole = (role || requestedRole || '').toString().toLowerCase();
+    if (!selectedRole || !['police', 'hospital', 'admin'].includes(selectedRole)) {
       return res.apiError('Invalid role. Must be police, hospital, or admin', null, 400, 'INVALID_ROLE');
     }
-    
-    const user = await User.findByIdAndUpdate(
-      userId,
-      {
-        pendingRole: role,
-        pendingRoleDocuments: documents || [],
-        roleApplicationDate: new Date(),
-        roleStatus: 'pending'
-      },
-      { new: true }
-    );
-    
+
+    const userId = req.user._id || req.user.userId;
+    const user = await User.findById(userId);
     if (!user) return res.apiError('User not found', null, 404, 'USER_NOT_FOUND');
-    
-    return res.apiSuccess({
-      roleStatus: user.roleStatus,
-      appliedRole: user.pendingRole
-    }, 'Role application submitted successfully', 200);
+
+    user.role = selectedRole;
+    user.status = 'pending';
+    user.rejectionReason = null;
+    user.adminNotes = '';
+
+    if (applicantName) user.name = applicantName;
+    if (applicantPhone) user.phone = applicantPhone;
+    if (applicantEmail) user.email = applicantEmail;
+
+    if (selectedRole === 'police') {
+      user.policeDetails = {
+        idProof: user.policeDetails?.idProof || null,
+        stationName: stationName || user.policeDetails?.stationName || null,
+        stationAddress: stationAddress || user.policeDetails?.stationAddress || null,
+        badgeNumber: badgeNumber || user.policeDetails?.badgeNumber || null,
+        badgeProof: user.policeDetails?.badgeProof || null,
+      };
+
+      user.hospitalDetails = {
+        hospitalName: null,
+        licenseProof: null,
+        staffType: null,
+        location: { latitude: 0, longitude: 0, address: null },
+        totalBeds: 0,
+        availableBeds: 0,
+        specializations: [],
+        contactPerson: null,
+      };
+    } else if (selectedRole === 'hospital') {
+      user.hospitalDetails = {
+        hospitalName: hospitalName || user.hospitalDetails?.hospitalName || null,
+        licenseProof: user.hospitalDetails?.licenseProof || null,
+        staffType: staffType || user.hospitalDetails?.staffType || null,
+        location: {
+          latitude: user.hospitalDetails?.location?.latitude || 0,
+          longitude: user.hospitalDetails?.location?.longitude || 0,
+          address: hospitalAddress || user.hospitalDetails?.location?.address || null,
+        },
+        totalBeds: user.hospitalDetails?.totalBeds || 0,
+        availableBeds: user.hospitalDetails?.availableBeds || 0,
+        specializations: user.hospitalDetails?.specializations || [],
+        contactPerson: applicantName || user.hospitalDetails?.contactPerson || user.name || null,
+      };
+
+      user.policeDetails = {
+        idProof: null,
+        stationName: null,
+        stationAddress: null,
+        badgeNumber: null,
+        badgeProof: null,
+      };
+    }
+
+    await user.save();
+
+    return res.apiSuccess(
+      {
+        applicationId: user._id,
+        requestedRole: user.role,
+        status: user.status,
+        applicantName: user.name,
+        applicantPhone: user.phone,
+        applicantEmail: user.email,
+        badgeNumber: user.policeDetails?.badgeNumber,
+        stationName: user.policeDetails?.stationName,
+        stationAddress: user.policeDetails?.stationAddress,
+        hospitalName: user.hospitalDetails?.hospitalName,
+        hospitalAddress: user.hospitalDetails?.location?.address,
+        staffType: user.hospitalDetails?.staffType,
+      },
+      'Role application submitted successfully',
+      200
+    );
   } catch (error) {
     return res.apiError('Failed to apply for role', error, 500, 'ROLE_APPLICATION_FAILED');
   }
 };
 
-module.exports = { getProfile, updateProfile, updateLocation, getLocation, applyRole };
+const getRoleApplicationStatus = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.userId;
+    const user = await User.findById(userId);
+    if (!user) return res.apiError('User not found', null, 404, 'USER_NOT_FOUND');
+
+    const hasApplication = user.role !== 'user' || user.status === 'pending' || user.status === 'rejected';
+    const application = hasApplication
+      ? {
+          requestedRole: user.role,
+          status: user.status,
+          applicantName: user.name,
+          applicantPhone: user.phone,
+          applicantEmail: user.email,
+          badgeNumber: user.policeDetails?.badgeNumber,
+          stationName: user.policeDetails?.stationName,
+          stationAddress: user.policeDetails?.stationAddress,
+          hospitalName: user.hospitalDetails?.hospitalName,
+          hospitalAddress: user.hospitalDetails?.location?.address,
+          staffType: user.hospitalDetails?.staffType,
+          rejectionReason: user.rejectionReason,
+          adminNotes: user.adminNotes,
+        }
+      : null;
+
+    return res.apiSuccess(
+      { hasApplication, application },
+      'Role application status retrieved successfully',
+      200
+    );
+  } catch (error) {
+    return res.apiError('Failed to fetch role application status', error, 500, 'ROLE_APPLICATION_STATUS_FAILED');
+  }
+};
+
+module.exports = { getProfile, updateProfile, updateLocation, getLocation, applyRole, getRoleApplicationStatus };

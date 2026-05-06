@@ -57,6 +57,7 @@ class _RoleApplicationScreenState extends State<RoleApplicationScreen> {
       final token = authProvider.token;
 
       final body = {
+        'role': _selectedRole,
         'requestedRole': _selectedRole,
         'applicantName': _nameController.text,
         'applicantPhone': _phoneController.text,
