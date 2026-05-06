@@ -294,9 +294,11 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _buildIconText(
-                      Icons.priority_high_rounded,
-                      'Priority: ${report['priority'] ?? 'HIGH'}',
-                      Colors.orange),
+                      Icons.bolt_rounded,
+                      report['riskLevel'] != null
+                          ? 'Risk: ${report['riskLevel']?.toString().toUpperCase() ?? 'CRITICAL'}'
+                          : 'Priority: ${report['priority'] ?? 'HIGH'}',
+                      report['riskLevel'] == 'critical' ? Colors.red : Colors.orange),
                   _buildIconText(
                       Icons.access_time_rounded,
                       _formattedReportTime(report['timestamp']),

@@ -340,6 +340,8 @@ const getAdminCases = async (req, res) => {
       description: alert.description,
       priority: alert.priority || 'HIGH',
       location: alert.location,
+      riskLevel: alert.metadata?.riskLevel || 'critical',
+      severityScore: alert.metadata?.riskScore ?? alert.severityScore ?? 0,
       metadata: alert.metadata,
       reportedBy: alert.userId
         ? {
