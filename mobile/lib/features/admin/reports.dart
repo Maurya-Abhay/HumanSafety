@@ -46,8 +46,9 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
       if (resp.statusCode == 200) {
         final data = resp.data is String ? jsonDecode(resp.data) : resp.data;
+        final payload = (data is Map && data.containsKey('data')) ? data['data'] : data;
         setState(() {
-          final casesList = (data as Map)['cases'] as List? ?? [];
+          final casesList = (payload as Map)['cases'] as List? ?? [];
           _reports = casesList.cast<Map<String, dynamic>>();
           _isLoading = false;
           _error = null;
@@ -277,7 +278,18 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              if (report['reportedBy'] != null)
+                Text(
+                  'Reported by: ${report['reportedBy']?['name'] ?? report['reportedBy']?['email'] ?? 'Unknown'}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: theme.textTheme.bodyMedium?.color
+                        ?.withValues(alpha: 0.65),
+                  ),
+                ),
+              if (report['reportedBy'] != null)
+                const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -286,7 +298,9 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                       'Priority: ${report['priority'] ?? 'HIGH'}',
                       Colors.orange),
                   _buildIconText(
-                      Icons.access_time_rounded, '2 mins ago', AppColors.grey),
+                      Icons.access_time_rounded,
+                      _formattedReportTime(report['timestamp']),
+                      AppColors.grey),
                 ],
               ),
             ],
@@ -337,6 +351,23 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         child: Icon(icon, color: AppColors.primary, size: 22),
       ),
     );
+  }
+
+  String _formattedReportTime(dynamic timestamp) {
+    if (timestamp == null) return 'Unknown time';
+    try {
+      final parsed = timestamp is int
+          ? DateTime.fromMillisecondsSinceEpoch(timestamp)
+          : DateTime.tryParse(timestamp.toString());
+      if (parsed == null) return 'Unknown time';
+      final diff = DateTime.now().difference(parsed);
+      if (diff.inMinutes < 1) return 'Just now';
+      if (diff.inHours < 1) return '${diff.inMinutes} min ago';
+      if (diff.inDays < 1) return '${diff.inHours} hrs ago';
+      return '${diff.inDays} day${diff.inDays == 1 ? '' : 's'} ago';
+    } catch (_) {
+      return 'Unknown time';
+    }
   }
 
   // Navigation consistent with Dashboard/Profile

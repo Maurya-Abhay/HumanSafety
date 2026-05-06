@@ -367,13 +367,17 @@ const getAdminCases = async (req, res) => {
       updatedAt: alert.updatedAt,
     }));
 
-    res.status(200).json({
-      total,
-      count: casePayload.length,
-      limit: parseInt(limit),
-      skip: parseInt(skip),
-      cases: casePayload,
-    });
+    return res.apiSuccess(
+      {
+        total,
+        count: casePayload.length,
+        limit: parseInt(limit),
+        skip: parseInt(skip),
+        cases: casePayload,
+      },
+      'Admin cases retrieved successfully',
+      200
+    );
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch cases', error: error.message });
   }
