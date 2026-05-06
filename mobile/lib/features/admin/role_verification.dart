@@ -10,6 +10,7 @@ import '../../shared/models.dart';
 import '../../core/routes.dart';
 import '../../core/api_service.dart';
 import '../../core/theme.dart';
+import 'role_verification_steps.dart';
 
 class RoleVerificationScreen extends StatefulWidget {
   const RoleVerificationScreen({super.key});
@@ -324,12 +325,22 @@ class _RoleVerificationScreenState extends State<RoleVerificationScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _ApplicationDetailsSheet(
-        application: app,
-        onApprove: () => _approveApplication(app['id'] ?? app['userId']),
-        onReject: () => _showRejectDialog(app['id'] ?? app['userId']),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.9,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (_, controller) => Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+          ),
+          child: RoleVerificationStepsScreen(
+            applicationId: app['id'] ?? app['userId'],
+            onBackRequested: () => Navigator.pop(context),
+          ),
+        ),
       ),
-    );
+    ).then((_) => _fetchApplications());
   }
 
   // ... (Keeping _approveApplication and _rejectApplication logic same as user provided) ...

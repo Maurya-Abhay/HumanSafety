@@ -11,6 +11,9 @@ const {
   getRoleApplications,
   approveRoleApplication,
   rejectRoleApplication,
+  approveVerificationStep,
+  rejectVerificationStep,
+  getVerificationDetails,
   getAdminCases,
 } = require('../controllers/admin.controller');
 const { verifyToken } = require('../middleware/auth.middleware');
@@ -40,7 +43,12 @@ router.get('/requests', getPendingRequests);
 
 // Role applications management
 router.get('/role-applications', getRoleApplications);
+router.get('/role-applications/:appId/details', getVerificationDetails);
 router.post('/role-applications/:appId/approve', approveRoleApplication);
 router.post('/role-applications/:appId/reject', rejectRoleApplication);
+
+// Step-wise verification
+router.post('/role-applications/:appId/verify/:step/approve', approveVerificationStep);
+router.post('/role-applications/:appId/verify/:step/reject', rejectVerificationStep);
 
 module.exports = router;

@@ -337,6 +337,150 @@ const rejectRoleApplication = async (req, res) => {
   }
 };
 
+// Approve a specific verification step
+const approveVerificationStep = async (req, res) => {
+  try {
+    const { appId, step } = req.params;
+    const { notes } = req.body;
+
+    const validSteps = ['documentVerification', 'addressVerification', 'credentialsVerification', 'backgroundCheck'];
+    if (!validSteps.includes(step)) {
+      return res.status(400).json({ message: 'Invalid verification step' });
+    }
+
+    const user = await User.findById(appId);
+    if (!user) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
+
+    if (user.verificationSteps[step].status !== 'pending') {
+      return res.status(400).json({ message: `Step ${step} is already ${user.verificationSteps[step].status}` });
+    }
+
+    user.verificationSteps[step].status = 'approved';
+    user.verificationSteps[step].notes = notes || '';
+    user.verificationSteps[step].verifiedBy = req.user._id;
+    user.verificationSteps[step].verifiedAt = new Date();
+    await user.save();
+
+    // Check if all steps are approved
+    const allStepsApproved = Object.values(user.verificationSteps).every(s => s.status === 'approved');
+    if (allStepsApproved && user.status === 'pending') {
+      user.status = 'active';
+      user.approvedBy = req.user._id;
+      user.approvedAt = new Date();
+      await user.save();
+    }
+
+    res.status(200).json({
+      message: 'Step approved successfully',
+      step,
+      allApproved: allStepsApproved,
+      userStatus: user.status,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to approve step', error: error.message });
+  }
+};
+
+// Reject a specific verification step
+const rejectVerificationStep = async (req, res) => {
+  try {
+    const { appId, step } = req.params;
+    const { notes } = req.body;
+
+    if (!notes) {
+      return res.status(400).json({ message: 'Rejection reason required' });
+    }
+
+    const validSteps = ['documentVerification', 'addressVerification', 'credentialsVerification', 'backgroundCheck'];
+    if (!validSteps.includes(step)) {
+      return res.status(400).json({ message: 'Invalid verification step' });
+    }
+
+    const user = await User.findById(appId);
+    if (!user) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
+
+    if (user.verificationSteps[step].status !== 'pending') {
+      return res.status(400).json({ message: `Step ${step} is already ${user.verificationSteps[step].status}` });
+    }
+
+    user.verificationSteps[step].status = 'rejected';
+    user.verificationSteps[step].notes = notes;
+    user.verificationSteps[step].verifiedBy = req.user._id;
+    user.verificationSteps[step].verifiedAt = new Date();
+    
+    // Mark overall status as rejected if any step fails
+    user.status = 'rejected';
+    user.rejectionReason = `Step ${step} rejected: ${notes}`;
+    await user.save();
+
+    res.status(200).json({
+      message: 'Step rejected successfully',
+      step,
+      userStatus: user.status,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to reject step', error: error.message });
+  }
+};
+
+// Get verification details for a user
+const getVerificationDetails = async (req, res) => {
+  try {
+    const { appId } = req.params;
+
+    const user = await User.findById(appId);
+    if (!user) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
+
+    const stepDetails = {
+      id: user._id,
+      name: user.name,
+      phone: user.phone,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+      createdAt: user.createdAt,
+      steps: {
+        documentVerification: {
+          ...user.verificationSteps.documentVerification,
+          description: user.role === 'police' ? 'ID Proof & Badge Verification' : 'Hospital License & Certificates',
+          documents: user.role === 'police' 
+            ? { idProof: user.policeDetails?.idProof, badgeProof: user.policeDetails?.badgeProof }
+            : { licenseProof: user.hospitalDetails?.licenseProof }
+        },
+        addressVerification: {
+          ...user.verificationSteps.addressVerification,
+          description: user.role === 'police' ? 'Police Station Address' : 'Hospital Address',
+          address: user.role === 'police'
+            ? user.policeDetails?.stationAddress
+            : user.hospitalDetails?.location?.address
+        },
+        credentialsVerification: {
+          ...user.verificationSteps.credentialsVerification,
+          description: user.role === 'police' ? 'Badge Number & Station Details' : 'Hospital Details & Staff Type',
+          details: user.role === 'police'
+            ? { badgeNumber: user.policeDetails?.badgeNumber, stationName: user.policeDetails?.stationName }
+            : { hospitalName: user.hospitalDetails?.hospitalName, staffType: user.hospitalDetails?.staffType }
+        },
+        backgroundCheck: {
+          ...user.verificationSteps.backgroundCheck,
+          description: 'Background & Safety Check',
+          status: 'pending'
+        }
+      }
+    };
+
+    res.status(200).json(stepDetails);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch verification details', error: error.message });
+  }
+};
+
 // Get all cases for admin review and reports
 const getAdminCases = async (req, res) => {
   try {
@@ -424,5 +568,8 @@ module.exports = {
   getRoleApplications,
   approveRoleApplication,
   rejectRoleApplication,
+  approveVerificationStep,
+  rejectVerificationStep,
+  getVerificationDetails,
   getAdminCases,
 };

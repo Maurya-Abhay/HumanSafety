@@ -1,5 +1,5 @@
 const express = require('express');
-const { getProfile, updateProfile, updateLocation, getLocation, applyRole, getRoleApplicationStatus } = require('../controllers/user.controller');
+const { getProfile, updateProfile, updateLocation, getLocation, applyRole, getRoleApplicationStatus, getApplicationDetails } = require('../controllers/user.controller');
 const { verifyToken } = require('../middleware/auth.middleware');
 const { validateUserUpdate, validateLocationUpdate } = require('../middleware/validation.middleware');
 
@@ -23,5 +23,8 @@ router.post('/role-application', verifyToken, applyRole);
 
 // GET /user/role-application - Retrieve current role application status
 router.get('/role-application', verifyToken, getRoleApplicationStatus);
+
+// GET /user/role-application/details - Get detailed application status with steps
+router.get('/application-details', verifyToken, getApplicationDetails);
 
 module.exports = router;

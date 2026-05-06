@@ -213,8 +213,86 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildInfoView(User user) {
+    // You can get completion from user object - for now showing placeholder
+    int profileCompletion = 45; // This should come from API
+    bool canApplyForRole = profileCompletion == 100;
+    
     return Column(
       children: [
+        // Profile Completion Card
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColors.primary.withValues(alpha: 0.1),
+                Colors.blue.withValues(alpha: 0.05),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.2),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Profile Completion',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.grey,
+                    ),
+                  ),
+                  Text(
+                    '$profileCompletion%',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: profileCompletion == 100 ? Colors.green : AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: profileCompletion / 100,
+                  minHeight: 8,
+                  backgroundColor: Colors.grey.withValues(alpha: 0.2),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    profileCompletion == 100 ? Colors.green : AppColors.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (profileCompletion < 100)
+                Text(
+                  'Complete your profile to apply for official roles',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.grey.withValues(alpha: 0.7),
+                  ),
+                )
+              else
+                const Text(
+                  '✓ Profile complete! You can now apply for official roles',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.green,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        
         _buildSectionHeader("Personal Information"),
         CustomCard(
           padding: EdgeInsets.zero,
@@ -244,32 +322,106 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildEditFields() {
-    return CustomCard(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text("Edit Profile Details",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-          const SizedBox(height: 20),
-          CustomTextField(
-            label: "Full Name",
-            hint: "Enter your full name",
-            controller: nameController,
-            prefixIcon: Icons.person_outline_rounded,
-            validator: (v) => v!.isEmpty ? "Name can't be empty" : null,
+    return Column(
+      children: [
+        CustomCard(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Basic Information",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const SizedBox(height: 16),
+              CustomTextField(
+                label: "Full Name",
+                hint: "Enter your full name",
+                controller: nameController,
+                prefixIcon: Icons.person_outline_rounded,
+                validator: (v) => v!.isEmpty ? "Name can't be empty" : null,
+              ),
+              const SizedBox(height: 12),
+              CustomTextField(
+                label: "Email Address",
+                hint: "Enter your email address",
+                controller: emailController,
+                prefixIcon: Icons.alternate_email_rounded,
+                inputType: TextInputType.emailAddress,
+                validator: (v) => !v!.contains('@') ? "Enter a valid email" : null,
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          CustomTextField(
-            label: "Email Address",
-            hint: "Enter your email address",
-            controller: emailController,
-            prefixIcon: Icons.alternate_email_rounded,
-            inputType: TextInputType.emailAddress,
-            validator: (v) => !v!.contains('@') ? "Enter a valid email" : null,
+        ),
+        const SizedBox(height: 16),
+        CustomCard(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Complete Your Profile",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const SizedBox(height: 4),
+              const Text("Fill all details to apply for official roles",
+                  style: TextStyle(fontSize: 12, color: AppColors.grey)),
+              const SizedBox(height: 16),
+              CustomTextField(
+                label: "Date of Birth",
+                hint: "DD/MM/YYYY",
+                prefixIcon: Icons.calendar_today,
+              ),
+              const SizedBox(height: 12),
+              CustomTextField(
+                label: "Aadhar Number",
+                hint: "Enter your Aadhar number",
+                prefixIcon: Icons.badge,
+              ),
+              const SizedBox(height: 12),
+              CustomTextField(
+                label: "Address",
+                hint: "Enter your address",
+                prefixIcon: Icons.location_on_outlined,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: CustomTextField(
+                      label: "City",
+                      hint: "City",
+                      prefixIcon: Icons.location_city,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: CustomTextField(
+                      label: "State",
+                      hint: "State",
+                      prefixIcon: Icons.map,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              CustomTextField(
+                label: "Zip Code",
+                hint: "Postal code",
+                prefixIcon: Icons.markunread_mailbox,
+              ),
+              const SizedBox(height: 12),
+              CustomTextField(
+                label: "Emergency Contact Name",
+                hint: "Contact person name",
+                prefixIcon: Icons.person_add,
+              ),
+              const SizedBox(height: 12),
+              CustomTextField(
+                label: "Emergency Contact Phone",
+                hint: "Contact number",
+                prefixIcon: Icons.phone,
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

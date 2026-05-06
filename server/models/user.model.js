@@ -40,6 +40,28 @@ const userSchema = new mongoose.Schema(
     bloodType: { type: String, default: '' },
     allergies: { type: String, default: '' },
 
+    // Complete Profile Information
+    profileDetails: {
+      dateOfBirth: { type: String, default: '' },
+      gender: { type: String, enum: ['male', 'female', 'other', ''], default: '' },
+      aadharNumber: { type: String, default: '' },
+      aadharProof: { type: String, default: null },
+      address: { type: String, default: '' },
+      city: { type: String, default: '' },
+      state: { type: String, default: '' },
+      zipCode: { type: String, default: '' },
+      medicalHistory: { type: String, default: '' },
+      emergencyContactName: { type: String, default: '' },
+      emergencyContactPhone: { type: String, default: '' },
+      emergencyContactRelation: { type: String, default: '' },
+    },
+
+    profileCompletion: {
+      percentage: { type: Number, default: 0 },
+      lastUpdatedAt: { type: Date, default: null },
+      requiredFields: [String], // List of incomplete fields
+    },
+
     emergencyContacts: [
       { type: mongoose.Schema.Types.ObjectId, ref: 'Contact' }
     ],
@@ -84,6 +106,34 @@ const userSchema = new mongoose.Schema(
       availableBeds: { type: Number, default: 0 },
       specializations: [{ type: String }],
       contactPerson: { type: String, default: null },
+    },
+
+    // Verification Steps
+    verificationSteps: {
+      documentVerification: {
+        status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+        notes: { type: String, default: '' },
+        verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+        verifiedAt: { type: Date, default: null },
+      },
+      addressVerification: {
+        status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+        notes: { type: String, default: '' },
+        verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+        verifiedAt: { type: Date, default: null },
+      },
+      credentialsVerification: {
+        status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+        notes: { type: String, default: '' },
+        verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+        verifiedAt: { type: Date, default: null },
+      },
+      backgroundCheck: {
+        status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+        notes: { type: String, default: '' },
+        verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+        verifiedAt: { type: Date, default: null },
+      },
     },
 
     adminNotes: { type: String, default: '' },
