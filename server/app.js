@@ -35,6 +35,9 @@ const FailureHandlingService = require('./services/failure_handling_service');
 const app = express();
 connectDB();
 
+// ================= TRUST PROXY =================
+app.set('trust proxy', 1);  // Trust first proxy (Render load balancer)
+
 // ================= RATE LIMITING =================
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
