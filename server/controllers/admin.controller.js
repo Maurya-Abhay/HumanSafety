@@ -208,8 +208,16 @@ const getRoleApplications = async (req, res) => {
     const { status } = req.query;
     
     const filter = {};
-    if (status && ['pending', 'approved', 'rejected'].includes(status)) {
-      filter.status = status;
+    // Map UI status labels to backend enum values
+    const statusMap = {
+      'pending': 'pending',
+      'approved': 'active',
+      'active': 'active',
+      'rejected': 'rejected'
+    };
+    
+    if (status && statusMap[status]) {
+      filter.status = statusMap[status];
     }
 
     const applications = await User.find({
@@ -262,16 +270,25 @@ const approveRoleApplication = async (req, res) => {
       return res.status(400).json({ message: 'Only police, hospital, and admin applications can be approved' });
     }
 
+    // Only approve if currently pending
+    if (user.status !== 'pending') {
+      return res.status(400).json({ message: `Cannot approve: application status is ${user.status}` });
+    }
+
     user.status = 'active';
     user.approvedBy = req.user._id;
     user.approvedAt = new Date();
     user.adminNotes = approvalNotes || user.adminNotes;
+    user.rejectionReason = null;  // Clear any rejection reason
     await user.save();
 
     res.status(200).json({
-      message: 'Application approved',
+      message: 'Application approved successfully',
       applicationId: user._id,
+      userId: user._id,
+      role: user.role,
       status: user.status,
+      updatedAt: user.approvedAt,
     });
   } catch (error) {
     res.status(500).json({ message: 'Approval failed', error: error.message });
@@ -297,15 +314,23 @@ const rejectRoleApplication = async (req, res) => {
       return res.status(400).json({ message: 'Only police, hospital, and admin applications can be rejected' });
     }
 
+    // Only reject if currently pending
+    if (user.status !== 'pending') {
+      return res.status(400).json({ message: `Cannot reject: application status is ${user.status}` });
+    }
+
     user.status = 'rejected';
     user.rejectionReason = rejectionReason;
     user.adminNotes = `Rejected: ${rejectionReason}`;
     await user.save();
 
     res.status(200).json({
-      message: 'Application rejected',
+      message: 'Application rejected successfully',
       applicationId: user._id,
+      userId: user._id,
+      role: user.role,
       status: user.status,
+      rejectionReason: user.rejectionReason,
     });
   } catch (error) {
     res.status(500).json({ message: 'Rejection failed', error: error.message });

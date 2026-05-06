@@ -36,7 +36,11 @@ class _RoleVerificationScreenState extends State<RoleVerificationScreen> {
       final token = authProvider.token;
 
       final dio = NetworkClient().client;
-      final resp = await dio.get('/api/v1/admin/role-applications', queryParameters: {'status': _filterStatus}, options: Options(headers: {
+      // Map UI status labels to backend values (pending, active, rejected)
+      final statusMap = {'pending': 'pending', 'approved': 'active', 'rejected': 'rejected'};
+      final backendStatus = statusMap[_filterStatus] ?? _filterStatus;
+      
+      final resp = await dio.get('/api/v1/admin/role-applications', queryParameters: {'status': backendStatus}, options: Options(headers: {
         'Authorization': 'Bearer $token',
       }));
 
