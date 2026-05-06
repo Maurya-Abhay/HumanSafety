@@ -27,6 +27,7 @@ const caseRoutes = require('./routes/case.routes');
 const ambulanceRoutes = require('./routes/ambulance.routes');
 const aiRoutes = require('./routes/ai.routes');
 const healthRoutes = require('./routes/health.routes');
+const debugRoutes = require('./routes/debug.routes');
 
 const { getRealtimeService } = require('./services/realtime_event_service');
 const FailureHandlingService = require('./services/failure_handling_service');
@@ -93,6 +94,7 @@ app.use((req, res, next) => {
 });
 
 // ================= ROUTES =================
+app.use('/debug', debugRoutes);
 app.use('/api/v1/auth', authLimiter, authRoutes);
 app.use('/api/v1/user', userRoutes);
 app.use('/api/v1/contact', contactRoutes);
