@@ -213,7 +213,7 @@ const getRoleApplications = async (req, res) => {
     }
 
     const applications = await User.find({
-      role: { $in: ['police', 'hospital'] },
+      role: { $in: ['police', 'hospital', 'admin'] },
       ...filter
     })
       .select('-password')
@@ -223,6 +223,7 @@ const getRoleApplications = async (req, res) => {
       count: applications.length,
       applications: applications.map(user => ({
         id: user._id,
+        _id: user._id,
         userId: user._id,
         requestedRole: user.role,
         applicantName: user.name,
@@ -257,8 +258,8 @@ const approveRoleApplication = async (req, res) => {
       return res.status(404).json({ message: 'Application not found' });
     }
 
-    if (!['police', 'hospital'].includes(user.role)) {
-      return res.status(400).json({ message: 'Only police and hospital applications can be approved' });
+    if (!['police', 'hospital', 'admin'].includes(user.role)) {
+      return res.status(400).json({ message: 'Only police, hospital, and admin applications can be approved' });
     }
 
     user.status = 'active';
@@ -292,8 +293,8 @@ const rejectRoleApplication = async (req, res) => {
       return res.status(404).json({ message: 'Application not found' });
     }
 
-    if (!['police', 'hospital'].includes(user.role)) {
-      return res.status(400).json({ message: 'Only police and hospital applications can be rejected' });
+    if (!['police', 'hospital', 'admin'].includes(user.role)) {
+      return res.status(400).json({ message: 'Only police, hospital, and admin applications can be rejected' });
     }
 
     user.status = 'rejected';

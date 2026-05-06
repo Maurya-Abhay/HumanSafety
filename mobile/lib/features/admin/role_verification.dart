@@ -322,8 +322,8 @@ class _RoleVerificationScreenState extends State<RoleVerificationScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) => _ApplicationDetailsSheet(
         application: app,
-        onApprove: () => _approveApplication(app['_id']),
-        onReject: () => _showRejectDialog(app['_id']),
+        onApprove: () => _approveApplication(app['id'] ?? app['userId']),
+        onReject: () => _showRejectDialog(app['id'] ?? app['userId']),
       ),
     );
   }
