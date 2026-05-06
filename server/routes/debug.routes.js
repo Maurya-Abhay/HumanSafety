@@ -131,13 +131,13 @@ router.post('/unblock-user', async (req, res) => {
 });
 
 /**
- * Debug endpoint to create a test user (FOR TESTING ONLY)
+ * Debug endpoint to create and immediately verify a test user
  * Usage: POST /debug/create-test-user
- * Body: { phone: "2222222222", password: "Test@1234", name: "Test User" }
+ * Body: { phone: "1234567890", password: "Test@1234" }
  */
 router.post('/create-test-user', async (req, res) => {
   try {
-    const { phone, password = 'Test@1234', name = 'Test User' } = req.body;
+    const { phone, password = 'Test@1234' } = req.body;
 
     if (!phone) {
       return res.status(400).json({
@@ -146,37 +146,55 @@ router.post('/create-test-user', async (req, res) => {
       });
     }
 
-    let user = await User.findOne({ phone });
+    // Delete existing user to start fresh
+    await User.deleteOne({ phone });
 
-    if (user) {
-      return res.status(409).json({
-        success: false,
-        message: 'User already exists',
-        data: { phone, userId: user._id },
-      });
-    }
-
-    user = await User.create({
+    // Create new user
+    const user = await User.create({
       phone,
       password,
-      name,
+      name: `Test User ${phone}`,
       email: `test-${phone}@example.com`,
       status: 'active',
       isActive: true,
       isBlocked: false,
     });
 
+    console.info(`✅ User created: ${phone}, userId=${user._id}, hasPassword=${!!user.password}`);
+
+    // Immediately test password comparison
+    const isMatch = await user.comparePassword(password);
+    console.info(`🔐 Password comparison result: ${isMatch}`);
+
+    if (!isMatch) {
+      return res.status(500).json({
+        success: false,
+        message: 'Password comparison failed after creation',
+        data: { phone, passwordStored: !!user.password, passwordMatches: isMatch },
+      });
+    }
+
+    // Generate token (simulate login)
+    const jwt = require('jsonwebtoken');
+    const token = jwt.sign(
+      { userId: user._id, phone: user.phone },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRE || '7d' }
+    );
+
     return res.status(201).json({
       success: true,
-      message: `Test user created`,
+      message: `User created and verified. Use these credentials to login:`,
       data: {
-        phone: user.phone,
+        phone,
+        password: password,
         userId: user._id,
-        name: user.name,
-        password: password, // ⚠️ For testing only!
+        token: token.substring(0, 30) + '...',
+        passwordMatches: true,
       },
     });
   } catch (error) {
+    console.error(`❌ Setup error: ${error.message}`);
     return res.status(500).json({
       success: false,
       message: 'Error creating test user',
