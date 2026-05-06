@@ -252,7 +252,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'ID: #${report['_id']?.toString().substring(18, 24).toUpperCase() ?? 'N/A'}',
+                          'ID: #${(report['id'] ?? report['_id'])?.toString().substring(18, 24).toUpperCase() ?? 'N/A'}',
                           style: const TextStyle(
                               fontSize: 12,
                               color: AppColors.grey,

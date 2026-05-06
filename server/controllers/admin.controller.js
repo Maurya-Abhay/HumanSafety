@@ -333,6 +333,7 @@ const getAdminCases = async (req, res) => {
     const total = await Alert.countDocuments(filter);
     const casePayload = cases.map((alert) => ({
       id: alert._id,
+      _id: alert._id,
       type: alert.type,
       status: alert.status,
       title: alert.title,
