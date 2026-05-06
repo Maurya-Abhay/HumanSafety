@@ -6,8 +6,8 @@ class AppConfig {
   static const String appBuild = '1';
 
   // API Configuration
-  static const String apiBaseUrl = 'http://localhost:5000/api/v1';
-  static const String wsBaseUrl = 'ws://localhost:5000/ws';
+  static const String apiBaseUrl = 'https://humansafety.onrender.com/api/v1';
+  static const String wsBaseUrl = 'wss://humansafety.onrender.com/ws';
   
   // Timeouts (in seconds)
   static const int apiTimeout = 10;

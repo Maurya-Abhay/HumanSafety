@@ -1,7 +1,8 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 
 class EnvConfig {
+  static bool _initialized = false;
+
   static late final String apiProtocol;
   static late final String apiHost;
   static late final String apiPort;
@@ -25,6 +26,8 @@ class EnvConfig {
   /// Initialize environment configuration from .env file
   /// Call this in main() before creating the app
   static Future<void> initialize() async {
+    if (_initialized) return;
+
     await dotenv.load();
     
     // API Configuration
@@ -35,12 +38,6 @@ class EnvConfig {
     wsHost = dotenv.get('WS_HOST', fallback: 'localhost');
     wsPort = dotenv.get('WS_PORT', fallback: '5000');
     aiEngineUrl = dotenv.get('AI_ENGINE_URL', fallback: 'http://localhost:8000');
-
-    // If running on web, override host to localhost (10.0.2.2 is for Android emulator only)
-    if (kIsWeb) {
-      apiHost = 'localhost';
-      wsHost = 'localhost';
-    }
     
     // Feature Flags
     enableDebugLogs = dotenv.get('ENABLE_DEBUG_LOGS', fallback: 'true').toLowerCase() == 'true';
@@ -56,6 +53,8 @@ class EnvConfig {
     impactThreshold = double.parse(dotenv.get('IMPACT_THRESHOLD', fallback: '15.0'));
     inactivityThreshold = int.parse(dotenv.get('INACTIVITY_THRESHOLD', fallback: '30'));
     batterySaverModeThreshold = int.parse(dotenv.get('BATTERY_SAVER_MODE_THRESHOLD', fallback: '15'));
+
+    _initialized = true;
   }
 
   /// Get full API base URL

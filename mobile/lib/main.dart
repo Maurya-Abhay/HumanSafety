@@ -35,6 +35,9 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
+  await EnvConfig.initialize();
+  debugPrint('✅ Env config initialized: ${EnvConfig.apiBaseUrl}');
+
   // Initialize app
   runApp(const HumanSafetyApp());
 
@@ -48,10 +51,6 @@ void main() async {
 
 Future<void> _initializeServices() async {
   try {
-    // Load environment configuration
-    await EnvConfig.initialize();
-    debugPrint('✅ Env config initialized: ${EnvConfig.apiBaseUrl}');
-
     // Configure API service
     ApiService().setBaseUrl(EnvConfig.apiBaseUrl);
 

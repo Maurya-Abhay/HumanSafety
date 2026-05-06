@@ -12,7 +12,7 @@ class ApiService {
   ApiService._internal();
 
   final _client = CachedHttpClient();
-  String _baseUrl = 'http://localhost:5000/api/v1';
+  String _baseUrl = 'https://humansafety.onrender.com/api/v1';
   String? _authToken;
 
   void setBaseUrl(String url) => _baseUrl = url;

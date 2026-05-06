@@ -79,6 +79,9 @@ const verifyOTPAndLogin = async (req, res) => {
 
 const loginWithPassword = async (req, res) => {
   try {
+    // Helpful debug logs to diagnose 4xx responses during integration
+    console.info(`LOGIN_ATTEMPT: origin=${req.get('origin') || req.get('referer') || 'unknown'} body=${JSON.stringify(req.body)}`);
+
     const { phone, password } = req.body;
 
     if (!phone || !password) {
@@ -86,6 +89,7 @@ const loginWithPassword = async (req, res) => {
     }
 
     const user = await User.findOne({ phone });
+    console.info(`LOGIN_DEBUG: userFound=${!!user}`);
 
     if (!user) {
       return res.apiError('User not found', null, 404, 'USER_NOT_FOUND');
@@ -96,6 +100,7 @@ const loginWithPassword = async (req, res) => {
     }
 
     if (user.isBlocked) {
+      console.warn(`LOGIN_BLOCKED: phone=${phone} blocked=${user.isBlocked} reason=${user.blockReason}`);
       return res.apiError('User account is blocked', null, 403, 'USER_BLOCKED');
     }
 
