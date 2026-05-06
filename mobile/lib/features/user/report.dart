@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'dart:ui';
 import '../../shared/widgets.dart';
 import '../../shared/models.dart';
+import '../../core/api_service.dart';
 import '../../core/theme.dart';
 
 class ReportScreen extends StatefulWidget {
@@ -259,15 +260,30 @@ class _ReportScreenState extends State<ReportScreen> {
     }
 
     setState(() => _isLoading = true);
-    
+
     try {
-      // Logic for location and submission
-      final position = await Geolocator.getCurrentPosition();
-      // await casesProvider.reportIncident(...)
-      
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      final authProvider = context.read<AuthProvider>();
+      final token = authProvider.token;
+      if (token == null || token.isEmpty) {
+        throw Exception('Login required to submit report');
+      }
+
+      await ApiService.createPanicAlert(
+        token,
+        latitude: position.latitude,
+        longitude: position.longitude,
+        description: '${_titleController.text.trim()}\n${_descriptionController.text.trim()}',
+      );
+
       _showSuccessDialog();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error submitting report: $e'), behavior: SnackBarBehavior.floating),
+      );
     } finally {
       setState(() => _isLoading = false);
     }

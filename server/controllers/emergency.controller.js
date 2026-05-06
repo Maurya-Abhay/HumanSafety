@@ -19,7 +19,7 @@ const AIEngineClient = require('../services/ai-engine.service');
 const triggerPanic = async (req, res) => {
   try {
     const userId = req.user.id || req.user.userId;
-    const { latitude, longitude, sensorData } = req.body;
+    const { latitude, longitude, sensorData, description } = req.body;
     
     // Validate location
     const locCheck = validateLocation(latitude, longitude);
@@ -69,7 +69,8 @@ const triggerPanic = async (req, res) => {
         latitude,
         longitude
       },
-      description: `Panic alert activated - Risk Level: ${riskLevel}`,
+      title: description ? description.toString().split('\n').first : `Panic alert activated - Risk Level: ${riskLevel}`,
+      description: description ? description.toString() : `Panic alert activated - Risk Level: ${riskLevel}`,
       metadata: {
         riskScore,
         riskLevel,

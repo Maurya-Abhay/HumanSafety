@@ -8,6 +8,7 @@ const alertSchema = new mongoose.Schema(
       latitude: { type: Number, required: true },
       longitude: { type: Number, required: true },
     },
+    title: { type: String, default: '' },
     description: { type: String, default: '' },
     contactsNotified: { type: Number, default: 0 },
     status: { type: String, enum: ['pending', 'assigned', 'in-progress', 'at-location', 'providing-help', 'resolved', 'dismissed'], default: 'pending' },

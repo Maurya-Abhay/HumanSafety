@@ -323,7 +323,7 @@ const getAdminCases = async (req, res) => {
 
     const Alert = require('../models/alert.model');
     const cases = await Alert.find(filter)
-      .populate('reportedBy', 'name phone email')
+      .populate('userId', 'name phone email role')
       .populate('assignedPolice', 'name policeDetails')
       .populate('assignedHospital', 'name hospitalDetails')
       .limit(parseInt(limit))
