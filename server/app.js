@@ -65,9 +65,14 @@ const corsOptions = {
     if (!origin) return callback(null, true);
     const isLocalDevOrigin = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
     const isAllowedOrigin = allowedOrigins.includes(origin);
+    
+    // Debug log for origin checks
+    console.info(`🔍 CORS check: origin="${origin}" local=${isLocalDevOrigin} allowed=${isAllowedOrigin} allowedList=[${allowedOrigins.join(', ')}]`);
+    
     if (isAllowedOrigin || isLocalDevOrigin) {
       return callback(null, true);
     }
+    console.warn(`⛔ CORS BLOCKED: origin="${origin}"`);
     return callback(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,

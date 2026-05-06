@@ -4,6 +4,28 @@ const User = require('../models/user.model');
 const router = express.Router();
 
 /**
+ * Debug endpoint to check CORS configuration
+ * Usage: GET /debug/cors-config
+ */
+router.get('/cors-config', (req, res) => {
+  const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  return res.status(200).json({
+    success: true,
+    data: {
+      allowedOrigins,
+      localDevOriginRegex: '^https?://(localhost|127.0.0.1)(:\\d+)?$',
+      incomingOrigin: req.get('origin') || 'no origin header',
+      incomingReferer: req.get('referer') || 'no referer header',
+      note: 'Localhost and 127.0.0.1 with any port are always allowed',
+    },
+  });
+});
+
+/**
  * Debug endpoint to check user status
  * Usage: GET /debug/user-status?phone=2222222222
  */
