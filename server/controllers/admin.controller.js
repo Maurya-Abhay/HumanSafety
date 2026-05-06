@@ -331,13 +331,48 @@ const getAdminCases = async (req, res) => {
       .sort({ createdAt: -1 });
 
     const total = await Alert.countDocuments(filter);
+    const casePayload = cases.map((alert) => ({
+      id: alert._id,
+      type: alert.type,
+      status: alert.status,
+      title: alert.title,
+      description: alert.description,
+      priority: alert.priority || 'HIGH',
+      location: alert.location,
+      metadata: alert.metadata,
+      reportedBy: alert.userId
+        ? {
+            id: alert.userId._id,
+            name: alert.userId.name,
+            phone: alert.userId.phone,
+            email: alert.userId.email,
+            role: alert.userId.role,
+          }
+        : null,
+      assignedPolice: alert.assignedPolice
+        ? {
+            id: alert.assignedPolice._id,
+            name: alert.assignedPolice.name,
+            policeDetails: alert.assignedPolice.policeDetails,
+          }
+        : null,
+      assignedHospital: alert.assignedHospital
+        ? {
+            id: alert.assignedHospital._id,
+            name: alert.assignedHospital.name,
+            hospitalDetails: alert.assignedHospital.hospitalDetails,
+          }
+        : null,
+      timestamp: alert.createdAt,
+      updatedAt: alert.updatedAt,
+    }));
 
     res.status(200).json({
       total,
-      count: cases.length,
+      count: casePayload.length,
       limit: parseInt(limit),
       skip: parseInt(skip),
-      cases,
+      cases: casePayload,
     });
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch cases', error: error.message });
