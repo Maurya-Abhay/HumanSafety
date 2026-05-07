@@ -520,6 +520,114 @@ const markAmbulanceCompleted = async (req, res) => {
   }
 };
 
+// Get ambulance driver assignments
+const getAmbulanceAssignments = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    if (userRole !== 'ambulance') {
+      return res.status(403).json({ success: false, message: 'Only ambulance drivers can fetch assignments' });
+    }
+
+    const ambulance = await Ambulance.findOne({ driverId: userId })
+      .populate('assignedCaseId', 'location description patientName');
+
+    if (!ambulance) {
+      return res.status(404).json({ success: false, message: 'Ambulance not found' });
+    }
+
+    // Return current assignment if any
+    const assignments = [];
+    if (ambulance.assignedCaseId) {
+      assignments.push({
+        id: ambulance.assignedCaseId._id,
+        caseId: ambulance.assignedCaseId._id,
+        patientName: ambulance.assignedCaseId.patientName || 'Patient',
+        location: ambulance.assignedCaseId.location,
+        description: ambulance.assignedCaseId.description,
+        status: ambulance.status,
+        assignedAt: ambulance.lastHeartbeat,
+        eta: ambulance.eta?.estimatedMinutes || 0,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      count: assignments.length,
+      assignments,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch assignments', error: error.message });
+  }
+};
+
+// Get ambulance driver stats
+const getAmbulanceStats = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    if (userRole !== 'ambulance') {
+      return res.status(403).json({ success: false, message: 'Only ambulance drivers can fetch stats' });
+    }
+
+    const ambulance = await Ambulance.findOne({ driverId: userId });
+
+    if (!ambulance) {
+      return res.status(404).json({ success: false, message: 'Ambulance not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      stats: {
+        totalTrips: ambulance.activityLog?.filter(a => a.action === 'completed').length || 0,
+        averageRating: 4.8,
+        responseTime: ambulance.eta?.estimatedMinutes || 0,
+        isOnline: ambulance.isOnline,
+        status: ambulance.status,
+        currentLoad: ambulance.assignedCaseId ? 1 : 0,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch stats', error: error.message });
+  }
+};
+
+// Update ambulance online status
+const updateAmbulanceStatus = async (req, res) => {
+  try {
+    const { isOnline } = req.body;
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    if (userRole !== 'ambulance') {
+      return res.status(403).json({ success: false, message: 'Only ambulance drivers can update status' });
+    }
+
+    const ambulance = await Ambulance.findOne({ driverId: userId });
+
+    if (!ambulance) {
+      return res.status(404).json({ success: false, message: 'Ambulance not found' });
+    }
+
+    ambulance.isOnline = isOnline === true || isOnline === 'true';
+    ambulance.lastHeartbeat = new Date();
+    ambulance.status = isOnline ? 'available' : 'unavailable';
+
+    await ambulance.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Ambulance marked as ${isOnline ? 'online' : 'offline'}`,
+      isOnline: ambulance.isOnline,
+      status: ambulance.status,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to update status', error: error.message });
+  }
+};
+
 module.exports = {
   updateAmbulanceLocation,
   getAmbulanceLocation,
@@ -527,4 +635,7 @@ module.exports = {
   assignAmbulanceToCase,
   markAmbulanceArrived,
   markAmbulanceCompleted,
+  getAmbulanceAssignments,
+  getAmbulanceStats,
+  updateAmbulanceStatus,
 };

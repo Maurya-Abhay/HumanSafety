@@ -6,6 +6,9 @@ const {
   assignAmbulanceToCase,
   markAmbulanceArrived,
   markAmbulanceCompleted,
+  getAmbulanceAssignments,
+  getAmbulanceStats,
+  updateAmbulanceStatus,
 } = require('../controllers/ambulance.controller');
 const { verifyToken } = require('../middleware/auth.middleware');
 const { requireRole, requireApproved } = require('../middleware/role.middleware');
@@ -13,6 +16,30 @@ const { requireRole, requireApproved } = require('../middleware/role.middleware'
 const router = express.Router();
 
 // ============== AMBULANCE DRIVER ROUTES ==============
+
+// Driver fetches their assignments
+router.get(
+  '/assignments',
+  verifyToken,
+  requireRole('ambulance'),
+  getAmbulanceAssignments
+);
+
+// Driver fetches their stats
+router.get(
+  '/stats',
+  verifyToken,
+  requireRole('ambulance'),
+  getAmbulanceStats
+);
+
+// Driver updates their online status
+router.put(
+  '/status',
+  verifyToken,
+  requireRole('ambulance'),
+  updateAmbulanceStatus
+);
 
 // Driver updates ambulance location (frequent - from GPS)
 router.put(
