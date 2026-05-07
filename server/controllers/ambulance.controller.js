@@ -628,6 +628,39 @@ const updateAmbulanceStatus = async (req, res) => {
   }
 };
 
+// Get ambulance trip history (for drivers)
+const getAmbulanceTripHistory = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const userRole = req.user.role;
+    const { limit = 20 } = req.query;
+
+    let ambulance;
+    if (userRole === 'ambulance') {
+      // Ambulance driver: find by driverId
+      ambulance = await Ambulance.findOne({ driverId: userId });
+    } else if (userRole === 'hospital') {
+      // Hospital user: find by hospitalId
+      ambulance = await Ambulance.findOne({ hospitalId: userId });
+    }
+
+    if (!ambulance) {
+      return res.status(404).json({ success: false, message: 'Ambulance not found' });
+    }
+
+    // Get activity log (trip history)
+    const history = (ambulance.activityLog || []).slice(-parseInt(limit));
+
+    res.status(200).json({
+      success: true,
+      count: history.length,
+      history: history.reverse(), // Most recent first
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch trip history', error: error.message });
+  }
+};
+
 module.exports = {
   updateAmbulanceLocation,
   getAmbulanceLocation,
@@ -638,4 +671,5 @@ module.exports = {
   getAmbulanceAssignments,
   getAmbulanceStats,
   updateAmbulanceStatus,
+  getAmbulanceTripHistory,
 };

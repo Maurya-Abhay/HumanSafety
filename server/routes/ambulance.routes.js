@@ -9,6 +9,7 @@ const {
   getAmbulanceAssignments,
   getAmbulanceStats,
   updateAmbulanceStatus,
+  getAmbulanceTripHistory,
 } = require('../controllers/ambulance.controller');
 const { verifyToken } = require('../middleware/auth.middleware');
 const { requireRole, requireApproved } = require('../middleware/role.middleware');
@@ -31,6 +32,14 @@ router.get(
   verifyToken,
   requireRole('ambulance'),
   getAmbulanceStats
+);
+
+// Driver fetches their trip history
+router.get(
+  '/history',
+  verifyToken,
+  requireRole('ambulance'),
+  getAmbulanceTripHistory
 );
 
 // Driver updates their online status
