@@ -131,15 +131,6 @@ const updateProfile = async (req, res) => {
     return res.apiError('Failed to update profile', error, 500, 'PROFILE_UPDATE_FAILED');
   }
 };
-      name: user.name,
-      email: user.email,
-      bloodType: user.bloodType,
-      allergies: user.allergies,
-    }, 'Profile updated successfully', 200);
-  } catch (error) {
-    return res.apiError('Failed to update profile', error, 500, 'PROFILE_UPDATE_FAILED');
-  }
-};
 
 const updateLocation = async (req, res) => {
   try {
