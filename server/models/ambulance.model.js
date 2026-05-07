@@ -8,6 +8,11 @@ const ambulanceSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    driverId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     licenseNumber: {
       type: String,
       required: true,

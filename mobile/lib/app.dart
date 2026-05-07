@@ -36,15 +36,15 @@ class HumanSafetyApp extends StatelessWidget {
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {
           final isDarkMode = themeProvider.isDarkMode;
-          final systemBarColor = isDarkMode ? const Color(0xFF15161A) : Colors.white;
+          final systemBarColor =
+              isDarkMode ? const Color(0xFF15161A) : Colors.white;
 
           return MaterialApp(
             title: AppConstants.appName,
             navigatorKey: AppNavigationService.navigatorKey,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
-            themeMode:
-                isDarkMode ? ThemeMode.dark : ThemeMode.light,
+            themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
             builder: (context, child) {
               return AnnotatedRegion<SystemUiOverlayStyle>(
                 value: SystemUiOverlayStyle(
@@ -107,12 +107,12 @@ class _AppStartupWrapperState extends State<_AppStartupWrapper> {
         // Navigate based on auth state
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
-          
+
           if (authProvider.isAuthenticated) {
             // User is logged in - show home for their role
             final role = authProvider.user?.role ?? 'user';
             final homeRoute = AppRoutes.getHomeRouteForRole(role);
-            
+
             // Only navigate if not already on this route
             if (ModalRoute.of(context)?.settings.name != homeRoute) {
               Navigator.pushReplacementNamed(context, homeRoute);
@@ -217,6 +217,8 @@ class _LoadUserProfileWrapperState extends State<_LoadUserProfileWrapper> {
 
   String _getHomeRouteForRole(String role) {
     switch (role) {
+      case 'ambulance':
+        return AppRoutes.ambulanceHome;
       case 'police':
         return AppRoutes.policeDashboard;
       case 'hospital':

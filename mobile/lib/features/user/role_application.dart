@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'dart:ui';
 import '../../shared/widgets.dart';
 import '../../shared/models.dart';
+import '../../core/routes.dart';
 import '../../core/api_service.dart';
 import '../../core/theme.dart';
 import 'package:dio/dio.dart';
@@ -54,7 +55,13 @@ class _RoleApplicationScreenState extends State<RoleApplicationScreen> {
 
     try {
       final authProvider = context.read<AuthProvider>();
+      final user = authProvider.user;
       final token = authProvider.token;
+
+      if (user == null || !user.isProfileComplete) {
+        _showErrorSnackBar('Complete your profile to 100% before applying.');
+        return;
+      }
 
       final body = {
         'role': _selectedRole,
@@ -194,6 +201,14 @@ class _RoleApplicationScreenState extends State<RoleApplicationScreen> {
                     label: 'Submit Official Request',
                     isLoading: _isSubmitting,
                     onPressed: _submitApplication,
+                  ),
+                  const SizedBox(height: 12),
+                  SecondaryButton(
+                    label: 'View Application Status',
+                    onPressed: () => Navigator.pushNamed(
+                      context,
+                      AppRoutes.applicationStatus,
+                    ),
                   ),
                 ],
               ),

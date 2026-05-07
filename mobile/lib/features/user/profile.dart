@@ -18,8 +18,26 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
+  
+  // Basic Info Controllers
   late TextEditingController nameController;
   late TextEditingController emailController;
+  late TextEditingController addressController;
+  late TextEditingController genderController;
+  late TextEditingController dobController;
+  late TextEditingController bloodGroupController;
+  late TextEditingController medicalConditionsController;
+  late TextEditingController emergencyContactController;
+  late TextEditingController emergencyContactNameController;
+  late TextEditingController occupationController;
+  late TextEditingController aboutController;
+
+  // Additional Profile Controllers
+  late TextEditingController cityController;
+  late TextEditingController stateController;
+  late TextEditingController zipCodeController;
+  late TextEditingController aadharController;
+
   bool isEditing = false;
   bool isSaving = false;
 
@@ -28,6 +46,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     nameController = TextEditingController();
     emailController = TextEditingController();
+    addressController = TextEditingController();
+    genderController = TextEditingController();
+    dobController = TextEditingController();
+    bloodGroupController = TextEditingController();
+    medicalConditionsController = TextEditingController();
+    emergencyContactController = TextEditingController();
+    emergencyContactNameController = TextEditingController();
+    occupationController = TextEditingController();
+    aboutController = TextEditingController();
+    
+    cityController = TextEditingController();
+    stateController = TextEditingController();
+    zipCodeController = TextEditingController();
+    aadharController = TextEditingController();
   }
 
   Future<void> _updateProfile() async {
@@ -42,22 +74,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
         await ApiService.updateProfile(token, {
           'name': nameController.text.trim(),
           'email': emailController.text.trim(),
+          'bloodType': bloodGroupController.text.trim(),
+          'allergies': medicalConditionsController.text.trim(),
+          'dateOfBirth': dobController.text.trim(),
+          'gender': genderController.text.trim(),
+          'aadharNumber': aadharController.text.trim(),
+          'address': addressController.text.trim(),
+          'city': cityController.text.trim(),
+          'state': stateController.text.trim(),
+          'zipCode': zipCodeController.text.trim(),
+          'medicalHistory': medicalConditionsController.text.trim(),
+          'emergencyContactName': emergencyContactNameController.text.trim(),
+          'emergencyContactPhone': emergencyContactController.text.trim(),
         });
 
         await authProvider.fetchUserProfile();
+
+        if (!mounted) return;
 
         setState(() {
           isEditing = false;
           isSaving = false;
         });
 
-        if (mounted) {
-          _showSnackBar('Profile updated successfully', AppColors.success);
-        }
+        _showSnackBar('Profile updated successfully', AppColors.success);
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => isSaving = false);
-      if (mounted) _showSnackBar('Update failed: $e', AppColors.error);
+      _showSnackBar('Update failed: $e', AppColors.error);
     }
   }
 
@@ -73,15 +118,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          const Color(0xFFF8F9FD), // Ultra light grey/blue background
+      backgroundColor: const Color(0xFFF8F9FD), // Ultra light grey/blue background
       appBar: CustomAppBar(
         title: 'My Profile',
         actions: [
           if (!isEditing)
             IconButton(
-              icon: const Icon(Icons.settings_suggest_rounded,
-                  color: Colors.white),
+              icon: const Icon(Icons.settings_suggest_rounded, color: Colors.white),
               onPressed: () => Navigator.pushNamed(context, AppRoutes.settings),
             ),
         ],
@@ -89,14 +132,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
           final user = authProvider.user;
-          if (user == null)
-            return const Center(
-                child: LoadingWidget(message: "Fetching details..."));
+          if (user == null) {
+            return const Center(child: LoadingWidget(message: "Fetching details..."));
+          }
 
           // Sync controllers only when starting edit
           if (isEditing && nameController.text.isEmpty) {
             nameController.text = user.name;
             emailController.text = user.email;
+            addressController.text = user.address ?? '';
+            genderController.text = user.gender ?? '';
+            dobController.text = user.dateOfBirth ?? '';
+            bloodGroupController.text = user.bloodGroup ?? '';
+            medicalConditionsController.text = user.medicalConditions ?? '';
+            emergencyContactController.text = user.emergencyContact ?? '';
+            emergencyContactNameController.text = user.emergencyContactName ?? '';
+            occupationController.text = user.occupation ?? '';
+            aboutController.text = user.about ?? '';
+            
+            // Note: If your User model supports these fields, map them here like above:
+            // cityController.text = user.city ?? '';
+            // stateController.text = user.state ?? '';
+            // zipCodeController.text = user.zipCode ?? '';
+            // aadharController.text = user.aadharNumber ?? '';
           }
 
           return SingleChildScrollView(
@@ -111,8 +169,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 30),
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 300),
-                    child:
-                        isEditing ? _buildEditFields() : _buildInfoView(user),
+                    child: isEditing ? _buildEditFields() : _buildInfoView(user),
                   ),
                   const SizedBox(height: 30),
                   _buildActionButtons(authProvider),
@@ -163,7 +220,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 radius: 55,
                 backgroundColor: AppColors.primary,
                 child: Text(
-                  user.name[0].toUpperCase(),
+                  user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U', // Fixed RangeError
                   style: const TextStyle(
                       fontSize: 40,
                       fontWeight: FontWeight.bold,
@@ -213,9 +270,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildInfoView(User user) {
-    // You can get completion from user object - for now showing placeholder
-    int profileCompletion = 45; // This should come from API
-    bool canApplyForRole = profileCompletion == 100;
+    final profileCompletion = user.profileCompletion;
+    final canApplyForRole = user.isProfileComplete;
     
     return Column(
       children: [
@@ -225,13 +281,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                AppColors.primary.withValues(alpha: 0.1),
-                Colors.blue.withValues(alpha: 0.05),
+                AppColors.primary.withOpacity(0.1),
+                Colors.blue.withOpacity(0.05),
               ],
             ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: AppColors.primary.withValues(alpha: 0.2),
+              color: AppColors.primary.withOpacity(0.2),
             ),
           ),
           child: Column(
@@ -264,7 +320,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: LinearProgressIndicator(
                   value: profileCompletion / 100,
                   minHeight: 8,
-                  backgroundColor: Colors.grey.withValues(alpha: 0.2),
+                  backgroundColor: Colors.grey.withOpacity(0.2),
                   valueColor: AlwaysStoppedAnimation<Color>(
                     profileCompletion == 100 ? Colors.green : AppColors.primary,
                   ),
@@ -276,7 +332,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   'Complete your profile to apply for official roles',
                   style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.grey.withValues(alpha: 0.7),
+                    color: AppColors.grey.withOpacity(0.7),
                   ),
                 )
               else
@@ -292,6 +348,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         const SizedBox(height: 24),
+
+        if (canApplyForRole) ...[
+          PrimaryButton(
+            label: 'Apply for Official Role',
+            onPressed: () => Navigator.pushNamed(context, AppRoutes.roleApplication),
+          ),
+          const SizedBox(height: 12),
+          SecondaryButton(
+            label: 'View Application Status',
+            onPressed: () => Navigator.pushNamed(context, AppRoutes.applicationStatus),
+          ),
+          const SizedBox(height: 24),
+        ] else ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.orange.withOpacity(0.2)),
+            ),
+            child: const Text(
+              'Complete every profile field before applying for an official role.',
+              style: TextStyle(
+                color: Colors.orange,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
         
         _buildSectionHeader("Personal Information"),
         CustomCard(
@@ -300,11 +387,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               _buildListTile(Icons.email_outlined, "Email Address", user.email),
               _buildDivider(),
-              _buildListTile(
-                  Icons.phone_android_rounded, "Phone Number", user.phone),
+              _buildListTile(Icons.phone_android_rounded, "Phone Number", user.phone),
               _buildDivider(),
-              _buildListTile(
-                  Icons.bloodtype_outlined, "Blood Group", "O+ (Verified)"),
+              _buildListTile(Icons.location_on_outlined, "Address", user.address ?? '-'),
+              _buildDivider(),
+              _buildListTile(Icons.person_pin_circle_outlined, "Gender", user.gender ?? '-'),
+              _buildDivider(),
+              _buildListTile(Icons.cake_outlined, "Date of Birth", user.dateOfBirth ?? '-'),
+              _buildDivider(),
+              _buildListTile(Icons.bloodtype_outlined, "Blood Group", user.bloodGroup ?? '-'),
+              _buildDivider(),
+              _buildListTile(Icons.medical_services_outlined, "Medical Conditions", user.medicalConditions ?? '-'),
+              _buildDivider(),
+              _buildListTile(Icons.contact_emergency_outlined, "Emergency Contact", user.emergencyContact ?? '-'),
+              _buildDivider(),
+              _buildListTile(Icons.person_add_alt_1_outlined, "Emergency Contact Name", user.emergencyContactName ?? '-'),
+              _buildDivider(),
+              _buildListTile(Icons.work_outline, "Occupation", user.occupation ?? '-'),
+              _buildDivider(),
+              _buildListTile(Icons.info_outline, "About", user.about ?? '-'),
             ],
           ),
         ),
@@ -348,6 +449,88 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 inputType: TextInputType.emailAddress,
                 validator: (v) => !v!.contains('@') ? "Enter a valid email" : null,
               ),
+              const SizedBox(height: 12),
+              CustomTextField(
+                label: "Address",
+                hint: "Enter your address",
+                controller: addressController,
+                prefixIcon: Icons.location_on_outlined,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: CustomTextField(
+                      label: "Gender",
+                      hint: "Gender",
+                      controller: genderController,
+                      prefixIcon: Icons.person_outline,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: CustomTextField(
+                      label: "Date of Birth",
+                      hint: "DD/MM/YYYY",
+                      controller: dobController,
+                      prefixIcon: Icons.cake_outlined,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: CustomTextField(
+                      label: "Blood Group",
+                      hint: "Blood group",
+                      controller: bloodGroupController,
+                      prefixIcon: Icons.bloodtype_outlined,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: CustomTextField(
+                      label: "Occupation",
+                      hint: "Your occupation",
+                      controller: occupationController,
+                      prefixIcon: Icons.work_outline,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              CustomTextField(
+                label: "Medical Conditions",
+                hint: "Health or allergy notes",
+                controller: medicalConditionsController,
+                prefixIcon: Icons.medical_services_outlined,
+                maxLines: 2,
+              ),
+              const SizedBox(height: 12),
+              CustomTextField(
+                label: "Emergency Contact Name",
+                hint: "Contact person name",
+                controller: emergencyContactNameController,
+                prefixIcon: Icons.person_add_alt_1_outlined,
+              ),
+              const SizedBox(height: 12),
+              CustomTextField(
+                label: "Emergency Contact Phone",
+                hint: "Contact number",
+                controller: emergencyContactController,
+                prefixIcon: Icons.phone,
+                inputType: TextInputType.phone,
+              ),
+              const SizedBox(height: 12),
+              CustomTextField(
+                label: "About",
+                hint: "Short profile bio",
+                controller: aboutController,
+                prefixIcon: Icons.info_outline,
+                maxLines: 3,
+              ),
             ],
           ),
         ),
@@ -363,22 +546,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const Text("Fill all details to apply for official roles",
                   style: TextStyle(fontSize: 12, color: AppColors.grey)),
               const SizedBox(height: 16),
-              CustomTextField(
-                label: "Date of Birth",
-                hint: "DD/MM/YYYY",
-                prefixIcon: Icons.calendar_today,
-              ),
-              const SizedBox(height: 12),
+              // Removed duplicated fields (DOB, Address, Emergency Contacts) and attached proper controllers
               CustomTextField(
                 label: "Aadhar Number",
                 hint: "Enter your Aadhar number",
+                controller: aadharController,
                 prefixIcon: Icons.badge,
-              ),
-              const SizedBox(height: 12),
-              CustomTextField(
-                label: "Address",
-                hint: "Enter your address",
-                prefixIcon: Icons.location_on_outlined,
               ),
               const SizedBox(height: 12),
               Row(
@@ -387,6 +560,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: CustomTextField(
                       label: "City",
                       hint: "City",
+                      controller: cityController,
                       prefixIcon: Icons.location_city,
                     ),
                   ),
@@ -395,6 +569,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: CustomTextField(
                       label: "State",
                       hint: "State",
+                      controller: stateController,
                       prefixIcon: Icons.map,
                     ),
                   ),
@@ -404,19 +579,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               CustomTextField(
                 label: "Zip Code",
                 hint: "Postal code",
+                controller: zipCodeController,
                 prefixIcon: Icons.markunread_mailbox,
-              ),
-              const SizedBox(height: 12),
-              CustomTextField(
-                label: "Emergency Contact Name",
-                hint: "Contact person name",
-                prefixIcon: Icons.person_add,
-              ),
-              const SizedBox(height: 12),
-              CustomTextField(
-                label: "Emergency Contact Phone",
-                hint: "Contact number",
-                prefixIcon: Icons.phone,
               ),
             ],
           ),
@@ -539,9 +703,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (confirm == true) {
       await authProvider.logout();
-      if (mounted)
+      if (mounted) {
         Navigator.pushNamedAndRemoveUntil(
             context, AppRoutes.login, (route) => false);
+      }
     }
   }
 
@@ -549,6 +714,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void dispose() {
     nameController.dispose();
     emailController.dispose();
+    addressController.dispose();
+    genderController.dispose();
+    dobController.dispose();
+    bloodGroupController.dispose();
+    medicalConditionsController.dispose();
+    emergencyContactController.dispose();
+    emergencyContactNameController.dispose();
+    occupationController.dispose();
+    aboutController.dispose();
+    cityController.dispose();
+    stateController.dispose();
+    zipCodeController.dispose();
+    aadharController.dispose();
     super.dispose();
   }
 }

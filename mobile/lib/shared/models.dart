@@ -116,6 +116,9 @@ class User {
       bloodGroup,
       medicalConditions,
       emergencyContact,
+      emergencyContactName,
+      occupation,
+      about,
       avatar,
     ];
     final filled =
@@ -123,9 +126,11 @@ class User {
     return ((filled / fields.length) * 100).round();
   }
 
-  bool get isProfileComplete => profileCompletion >= 80;
+  bool get isProfileComplete => profileCompletion >= 100;
 
   factory User.fromJson(Map<String, dynamic> json) {
+    final profileDetails = json['profileDetails'] as Map<String, dynamic>? ?? {};
+    
     return User(
       id: json['_id'] ?? json['id'] ?? '',
       name: json['name'] ?? '',
@@ -137,28 +142,26 @@ class User {
           ? DateTime.tryParse(json['createdAt'])
           : null,
       avatar: json['avatar'],
-      address: json['address'] ?? json['location'] ?? '',
-      gender: json['gender'] ?? '',
-      dateOfBirth: json['dateOfBirth'] ?? json['dob'] ?? '',
-      bloodGroup: json['bloodGroup'] ?? '',
-      medicalConditions:
-          json['medicalConditions'] ?? json['medical_history'] ?? '',
-      emergencyContact: json['emergencyContact'] ?? '',
-      emergencyContactName:
-          json['emergencyContactName'] ?? json['emergency_name'] ?? '',
+      address: profileDetails['address'] ?? json['address'] ?? json['location'] ?? '',
+      gender: profileDetails['gender'] ?? json['gender'] ?? '',
+      dateOfBirth: profileDetails['dateOfBirth'] ?? json['dateOfBirth'] ?? json['dob'] ?? '',
+      bloodGroup: json['bloodType'] ?? json['bloodGroup'] ?? '',
+      medicalConditions: json['allergies'] ?? profileDetails['medicalHistory'] ?? json['medicalConditions'] ?? json['medical_history'] ?? '',
+      emergencyContact: profileDetails['emergencyContactPhone'] ?? json['emergencyContact'] ?? '',
+      emergencyContactName: profileDetails['emergencyContactName'] ?? json['emergencyContactName'] ?? json['emergency_name'] ?? '',
       occupation: json['occupation'] ?? '',
       about: json['about'] ?? '',
-        hospitalName: json['hospitalDetails']?['hospitalName'] ?? json['hospitalName'],
-        totalBeds: json['hospitalDetails']?['totalBeds'] is int
+      hospitalName: json['hospitalDetails']?['hospitalName'] ?? json['hospitalName'],
+      totalBeds: json['hospitalDetails']?['totalBeds'] is int
           ? json['hospitalDetails']['totalBeds']
           : int.tryParse('${json['hospitalDetails']?['totalBeds'] ?? ''}'),
-        availableBeds: json['hospitalDetails']?['availableBeds'] is int
+      availableBeds: json['hospitalDetails']?['availableBeds'] is int
           ? json['hospitalDetails']['availableBeds']
           : int.tryParse('${json['hospitalDetails']?['availableBeds'] ?? ''}'),
-        specializations: (json['hospitalDetails']?['specializations'] is List)
+      specializations: (json['hospitalDetails']?['specializations'] is List)
           ? List<String>.from(json['hospitalDetails']['specializations'])
           : null,
-        contactPerson: json['hospitalDetails']?['contactPerson'] ?? json['contactPerson'],
+      contactPerson: json['hospitalDetails']?['contactPerson'] ?? json['contactPerson'],
     );
   }
 

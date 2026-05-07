@@ -18,7 +18,7 @@ const router = express.Router();
 router.put(
   '/location',
   verifyToken,
-  requireRole('hospital'),
+  requireRole('hospital', 'ambulance'),
   updateAmbulanceLocation
 );
 
@@ -26,7 +26,7 @@ router.put(
 router.put(
   '/:ambulanceId/arrived',
   verifyToken,
-  requireRole('hospital'),
+  requireRole('hospital', 'ambulance'),
   markAmbulanceArrived
 );
 
@@ -34,7 +34,7 @@ router.put(
 router.put(
   '/:ambulanceId/completed',
   verifyToken,
-  requireRole('hospital'),
+  requireRole('hospital', 'ambulance'),
   markAmbulanceCompleted
 );
 

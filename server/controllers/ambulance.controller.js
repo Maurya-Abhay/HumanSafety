@@ -7,13 +7,22 @@ const { calculateDistance, calculateETA } = require('../services/location.servic
 const updateAmbulanceLocation = async (req, res) => {
   try {
     const { latitude, longitude, address } = req.body;
-    const hospitalId = req.user._id;
+    const userId = req.user._id;
+    const userRole = req.user.role;
 
     if (!latitude || !longitude) {
       return res.status(400).json({ success: false, message: 'Latitude and longitude required' });
     }
 
-    let ambulance = await Ambulance.findOne({ hospitalId });
+    // Find ambulance based on user role
+    let ambulance;
+    if (userRole === 'ambulance') {
+      // Ambulance driver: find by driverId
+      ambulance = await Ambulance.findOne({ driverId: userId });
+    } else if (userRole === 'hospital') {
+      // Hospital user: find by hospitalId
+      ambulance = await Ambulance.findOne({ hospitalId: userId });
+    }
 
     if (!ambulance) {
       return res.status(404).json({ success: false, message: 'Ambulance not found' });
@@ -145,9 +154,17 @@ const acceptEmergency = async (req, res) => {
 const markArrived = async (req, res) => {
   try {
     const { emergencyId } = req.params;
-    const hospitalId = req.user._id;
+    const userId = req.user._id;
+    const userRole = req.user.role;
 
-    const ambulance = await Ambulance.findOne({ hospitalId });
+    // Find ambulance based on user role
+    let ambulance;
+    if (userRole === 'ambulance') {
+      ambulance = await Ambulance.findOne({ driverId: userId });
+    } else if (userRole === 'hospital') {
+      ambulance = await Ambulance.findOne({ hospitalId: userId });
+    }
+
     if (!ambulance) {
       return res.status(404).json({ success: false, message: 'Ambulance not found' });
     }
@@ -178,9 +195,17 @@ const completeEmergency = async (req, res) => {
   try {
     const { emergencyId } = req.params;
     const { patientCondition, treatmentGiven } = req.body;
-    const hospitalId = req.user._id;
+    const userId = req.user._id;
+    const userRole = req.user.role;
 
-    const ambulance = await Ambulance.findOne({ hospitalId });
+    // Find ambulance based on user role
+    let ambulance;
+    if (userRole === 'ambulance') {
+      ambulance = await Ambulance.findOne({ driverId: userId });
+    } else if (userRole === 'hospital') {
+      ambulance = await Ambulance.findOne({ hospitalId: userId });
+    }
+
     if (!ambulance) {
       return res.status(404).json({ success: false, message: 'Ambulance not found' });
     }
@@ -412,8 +437,18 @@ const assignAmbulanceToCase = async (req, res) => {
 const markAmbulanceArrived = async (req, res) => {
   try {
     const { ambulanceId } = req.params;
+    const userId = req.user._id;
+    const userRole = req.user.role;
 
-    const ambulance = await Ambulance.findById(ambulanceId);
+    let ambulance;
+    
+    // If ambulanceId is provided, use it; otherwise find by driverId
+    if (ambulanceId) {
+      ambulance = await Ambulance.findById(ambulanceId);
+    } else if (userRole === 'ambulance') {
+      ambulance = await Ambulance.findOne({ driverId: userId });
+    }
+
     if (!ambulance) {
       return res.status(404).json({ message: 'Ambulance not found' });
     }
@@ -446,8 +481,18 @@ const markAmbulanceArrived = async (req, res) => {
 const markAmbulanceCompleted = async (req, res) => {
   try {
     const { ambulanceId } = req.params;
+    const userId = req.user._id;
+    const userRole = req.user.role;
 
-    const ambulance = await Ambulance.findById(ambulanceId);
+    let ambulance;
+    
+    // If ambulanceId is provided, use it; otherwise find by driverId
+    if (ambulanceId) {
+      ambulance = await Ambulance.findById(ambulanceId);
+    } else if (userRole === 'ambulance') {
+      ambulance = await Ambulance.findOne({ driverId: userId });
+    }
+
     if (!ambulance) {
       return res.status(404).json({ message: 'Ambulance not found' });
     }

@@ -13,6 +13,7 @@ import '../features/user/contacts.dart';
 import '../features/user/report.dart';
 import '../features/user/notifications.dart';
 import '../features/user/profile.dart' as user_profile;
+import '../features/user/application_status.dart';
 
 /// ADMIN
 import '../features/admin/dashboard.dart';
@@ -71,6 +72,7 @@ class AppRoutes {
   static const String report = '/user/report';
   static const String notifications = '/user/notifications';
   static const String profile = '/user/profile';
+  static const String applicationStatus = '/user/application-status';
 
   /// ADMIN
   static const String adminDashboard = '/admin/dashboard';
@@ -147,6 +149,7 @@ class AppRoutes {
       report: (_) => const ReportScreen(),
       notifications: (_) => const NotificationsScreen(),
       profile: (_) => const user_profile.ProfileScreen(),
+      applicationStatus: (_) => const ApplicationStatusScreen(),
 
       /// ADMIN
       adminDashboard: (_) => const AdminDashboardScreen(),

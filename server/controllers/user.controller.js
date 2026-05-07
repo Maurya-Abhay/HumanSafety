@@ -118,6 +118,7 @@ const updateProfile = async (req, res) => {
     
     return res.apiSuccess({
       id: user._id,
+      phone: user.phone,
       name: user.name,
       email: user.email,
       bloodType: user.bloodType,

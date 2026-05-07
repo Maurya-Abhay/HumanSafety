@@ -69,7 +69,7 @@ const triggerPanic = async (req, res) => {
         latitude,
         longitude
       },
-      title: description ? description.toString().split('\n').first : `Panic alert activated - Risk Level: ${riskLevel}`,
+      title: description ? description.toString().split('\n')[0] : `Panic alert activated - Risk Level: ${riskLevel}`,
       description: description ? description.toString() : `Panic alert activated - Risk Level: ${riskLevel}`,
       metadata: {
         riskScore,
